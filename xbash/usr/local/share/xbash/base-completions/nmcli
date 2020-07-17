@@ -1,0 +1,7 @@
+xbash_comp_nmcli() {
+	local IFS=$'\n'
+	COMP_VALUES=($(
+		nmcli --complete-args "${COMP_ARGV[@]:1}" "$COMP_VALUE" 2>/dev/null |
+		LC_ALL=C sort | xbash_menu multi
+	))
+}

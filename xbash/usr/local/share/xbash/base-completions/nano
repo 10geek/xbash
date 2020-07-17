@@ -1,0 +1,20 @@
+xbash_comp_nano() {
+	local context
+	if xbash_parse_comp_argv context '[ABD-IK-NPRUVWZa-eg-npt-z$]' '[CJQTXYors]' '(backupdir|guidestripe|quotestr|tabsize|wordchars|syntax|operatingdir|fill|speller||||||)'
+	then case ${context[2]} in
+	s|-speller) xbash_compspecial_command;;
+	Y|-syntax)
+		[ -d /usr/share/nano ] &&
+		COMP_VALUES=("$(
+			cd /usr/share/nano &&
+			find . -path './*' -prune -type f -name '*.nanorc' |
+			sed 's/^\.\///; s/\.nanorc$//' | LC_ALL=C sort |
+			xbash_menu
+		)")
+		;;
+	*) xbash_compspecial_bash_completion;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	else return 2; fi
+}

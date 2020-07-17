@@ -1,0 +1,23 @@
+xbash_comp_htop() {
+	local context
+	if xbash_parse_comp_argv context '[Chtv]' '[dsup]' '(delay|sort-key|user|pid)'
+	then case ${context[2]} in
+	d|-delay) COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" 5)");;
+	s|-sort-key)
+		COMP_VALUES=("$(
+			htop -s help | xbash_istartswith "$COMP_VALUE" | xbash_menu
+		)")
+		;;
+	u|-user) xbash_compspecial_compgen -u;;
+	p|-pid)
+		xbash_move_substr '.*,' COMP_VALUE COMP_VALUE_BEFORE
+		xbash_compspecial_pid || return 1
+		[ "${COMP_VALUES[0]}" = "$COMP_VALUE" ] && COMP_VALUES[0]=${COMP_VALUES[0]},
+		COMP_NO_TRAILING_SPACE=1
+		;;
+	*) return 2;;
+	esac || return 1
+	else
+		xbash_compspecial_parse_help || return 1
+	fi
+}

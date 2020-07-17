@@ -1,0 +1,222 @@
+xbash_comp_virsh() {
+	local i end result field=name skip_result_processing=0
+	xbash_is_func_self_invoked && {
+	case $1 in
+	get_val_from_arg)
+		end=${#arg_val_types[@]}
+		[ $end -ge $COMP_ARGC ] && end=$((COMP_ARGC - 1))
+		for ((i = 0; i < end; i++)); do
+			[ "${arg_val_types[i]}" = "$2" ] && {
+				printf %s\\n "${COMP_ARGV[i+1]}"
+				return 0
+			}
+		done
+		return 1
+		;;
+	comp_val_type_name)
+		[ -n "$COMP_VALUE" ] && return 2
+		[ $COMP_ARGC -gt ${#arg_val_types[@]} ] && [ "${COMP_ARGV[-1]::2}" = -- ] && return 2
+		COMP_VALUES=("$2")
+		;;
+	comp_val_type)
+		case $2 in
+		virsh_command)
+			COMP_VALUES=("$(virsh help | xbash_awk 'BEGIN {
+				comm_count = comm_max_len = 0
+				shcmds["cd"] = shcmds["echo"] = shcmds["exit"] =\
+				shcmds["pwd"] = shcmds["quit"] = shcmds["connect"] = ""
+				ARGV[1] = tolower(ARGV[1])
+			}
+			$1 ~ /^[0-9a-z][0-9a-z_-]*$/ && !($1 in shcmds) {
+				if(!xbash_startswith($1, ARGV[1])) next
+				if(length($1) > comm_max_len) comm_max_len = length($1)
+				comm[++comm_count] = $1
+				$1 = ""; sub(/^[\t ]+/, "")
+				descr[comm_count] = $0
+			} END {
+				for(i = 1; i <= comm_count; i++)
+					printf("%-" comm_max_len "s -- %s\n", comm[i], descr[i])
+			}' "$COMP_VALUE" | xbash_menu)") || return 1
+			COMP_VALUES[0]=${COMP_VALUES[0]%% *}
+			return
+			;;
+		backing-vol-format)
+			COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" \
+				qcow2 raw host_device bochs qcow qed vmdk |
+			xbash_menu)") || return 1; return;;
+		format)
+			COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" \
+				qcow2 raw bochs qcow qed vmdk |
+			xbash_menu)") || return 1; return;;
+		domain) result=$("${virsh_args[@]}" list --all);;
+		interface|mac)
+			result=$("${virsh_args[@]}" iface-list --all)
+			[ "$2" = mac ] && field=mac
+			;;
+		network) result=$("${virsh_args[@]}" net-list --all);;
+		nwfilter) result=$("${virsh_args[@]}" nwfilter-list);;
+		pid) xbash_compspecial_pid || return 1; return;;
+		pool|inputpool) result=$("${virsh_args[@]}" pool-list --all --details);;
+		secret) result=$("${virsh_args[@]}" secret-list); field=uuid;;
+		signame)
+			result=$(
+				xbash_compgen_signals | xbash_awk 'BEGIN {
+					ARGV[1] = toupper(ARGV[1])
+				} {
+					if(xbash_startswith($2, ARGV[1])) print $0
+				}' "$COMP_VALUE" | xbash_menu
+			) || return 1
+			COMP_VALUES=("${result#* }")
+			return
+			;;
+		snapshotname)
+			result=$(xbash_comp_virsh get_val_from_arg domain) &&
+			result=$("${virsh_args[@]}" snapshot-list "$result" --parent);;
+		vol|backing-vol|base|top)
+			skip_result_processing=1
+			result=$(
+				for pool in $("${virsh_args[@]}" pool-list --all | LC_ALL=C awk 'BEGIN { field = 1 } {
+					if(NR > 2 && $0 != "") print $field
+					else if(NR == 1) for(i = 1; i <= NF; i++) {
+						if(tolower($i) == ARGV[1]) { field = i; break }
+					}
+				}'); do
+					"${virsh_args[@]}" vol-list "$pool" --details |
+					xbash_awk 'BEGIN {
+						field = is_first = 1
+						header = "| Pool: " ARGV[1]
+						ARGV[2] = tolower(ARGV[2])
+					} {
+						if(NR > 2) {
+							if(!xbash_startswith(tolower($field), ARGV[2])) next
+							if(is_first) { is_first = 0; print header }
+							print " " $0
+						} else if(NR == 1) {
+							header = header "\n|" $0
+							for(i = 1; i <= NF; i++) {
+								if(tolower($i) == "path") { field = i; break }
+							}
+						} else if(NR == 2) { gsub(/./, "-"); header = header "\n-" $0 }
+					}' "$pool" "$COMP_VALUE"
+				done
+			)
+			[ -z "$result" ] && {
+				xbash_comp_virsh comp_val_type_name "$2"
+				return
+			}
+			field=$(printf %s "$result" | LC_ALL=C awk -- 'BEGIN { field = 1 } {
+				if(NR == 1) next
+				sub(/^\|/, "")
+				for(i = 1; i <= NF; i++) {
+					if(tolower($i) == "path") { field = i; break }
+				}
+				exit
+			} END { print field }')
+			result="$(printf %s "$result" | xbash_menu)" || return 1
+			;;
+		*) xbash_comp_virsh comp_val_type_name "$2"; return;;
+		esac
+		[ $skip_result_processing -eq 0 ] && {
+			field=$(printf %s "$result" | LC_ALL=C awk -- 'BEGIN { field = ARGC = 1 } {
+				for(i = 1; i <= NF; i++) {
+					if(tolower($i) == ARGV[1]) { field = i; break }
+				}
+				exit
+			} END { print field }' "$field")
+			result="$(
+				printf %s "$result" |
+				xbash_awk 'BEGIN {
+					is_first = 1; header = ""
+					field = ARGV[1]; ARGV[2] = tolower(ARGV[2])
+				} {
+					if(NR > 2) {
+						if(!xbash_startswith(tolower($field), ARGV[2])) next
+						if(is_first) { is_first = 0; print header }
+						print " " $0
+					} else if(NR == 1) header = "|" $0
+					else if(NR == 2) { gsub(/./, "-"); header = header "\n-" $0 }
+				}' "$field" "$COMP_VALUE" | xbash_menu
+			)"
+			case $? in
+			2) xbash_comp_virsh comp_val_type_name "$2"; return;;
+			1) return 1;;
+			esac
+		}
+		COMP_VALUES=("$(printf %s "$result" | LC_ALL=C awk -- 'BEGIN { ARGC = 1 } {
+			if($0 !~ /^[|-]/) print $ARGV[1]
+		}' "$field")")
+		[ -n "${COMP_VALUES[0]}" ] || xbash_comp_virsh comp_val_type_name "$2"
+		;;
+	*) return 1;;
+	esac; return; }
+
+	local context virsh_args arg_val_types IFS
+	IFS=$XBASH_DEFAULT_IFS
+	if xbash_parse_comp_argv context '[hqrtvV]' '[cdekKl]' '(connect|debug|escape|keepalive-interval|keepalive-count|log)'
+	then case ${context[2]} in
+	c|-connect)
+		COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" \
+			qemu:///system lxc:///system xen:///system openvz:///system vbox:///session |
+		xbash_menu)") || return 1;;
+	d|-debug)
+		COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" {0..4} | xbash_menu)") || return 1;;
+	*) return 2;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help "$COMP_COMMAND" '--help | sed '\''s/|/,/'\' || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_comp_virsh comp_val_type virsh_command || return 1
+	else
+		virsh_args=(virsh)
+		end=$((COMP_ARGC - context[0]))
+		for ((i = 1; i < end; i++)); do
+			if
+				[ "${COMP_ARGV[i]}" = --connect ] ||
+				[[ "${COMP_ARGV[i]}" =~ ^-[hqrtvV]*c$ ]]
+			then
+				i=$((i + 1))
+				[ $i -lt $end ] && virsh_args+=(-c "${COMP_ARGV[i]}")
+			elif [[ "${COMP_ARGV[i]}" =~ ^-([hqrtvV]*c|-connect=)(.+) ]]; then
+				virsh_args+=(-c "${BASH_REMATCH[2]}")
+			fi
+		done
+		COMP_ARGV=("${COMP_ARGV[@]: -context[0]}")
+		COMP_ARGC=${context[0]}
+		[[ "${COMP_ARGV[0]}" =~ ^[0-9a-z][0-9a-z_-]*$ ]] || return 1
+		if [ "${COMP_ARGV[0]}" = help ]; then
+			arg_val_types=(virsh_command)
+		else
+			arg_val_types=($(
+				LC_ALL=C virsh help --command "${COMP_ARGV[0]}" 2>/dev/null |
+				LC_ALL=C awk -- 'BEGIN { ARGC = 1 }
+				tolower($1) == "synopsis" {
+					if((getline) <= 0 || $1 != ARGV[1]) exit
+					sub(/(\[|--[0-9a-z]).*/, "")
+					$1 = ""; sub(/^[\t ]+/, "")
+					while(match($0, /<[^>]*[^A-Za-z0-9_>-][^>]*>/)) {
+						str = substr($0, RSTART + 1, RLENGTH - 2)
+						gsub(/[^A-Za-z0-9_-]/, "_", str)
+						$0 = substr($0, 1, RSTART - 1) str substr($0, RSTART + RLENGTH)
+					}
+					gsub(/[<>]/, "")
+					print $0
+					exit
+				}' "${COMP_ARGV[0]}"
+			))
+		fi
+		[ $COMP_ARGC -gt ${#arg_val_types[@]} ] && {
+			[ $COMP_ARGC -ne $((${#arg_val_types[@]} + 1)) ] &&
+			[[ "${COMP_ARGV[-1]}" =~ ^--[0-9a-z][0-9a-z_-]*$ ]] && {
+				xbash_comp_virsh comp_val_type "${COMP_ARGV[-1]:2}"
+				case $? in
+				2) ;;
+				*) return;;
+				esac
+			}
+			[ -n "$COMP_VALUE" ] && [ "${COMP_VALUE::1}" != - ] && return 2
+			xbash_compspecial_parse_help "$COMP_COMMAND" 'help --command "${COMP_ARGV[0]}" | tr -d "[]"'
+			return
+		}
+		xbash_comp_virsh comp_val_type "${arg_val_types[COMP_ARGC - 1]}"
+	fi
+}

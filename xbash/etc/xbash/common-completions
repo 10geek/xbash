@@ -1,0 +1,25 @@
+## Completions for various executables
+
+# Use the xbash_compspecial_common() completion function for all commands that
+# uses the _longopt() function in bash completion and other listed in the
+# arguments. The "!" character before the argument means not to apply a
+# completion to the specified command.
+xbash_setcomp_common \
+	apack aunpack curl dracut elinks firewall-cmd firewall-offline-cmd fzf \
+	fzf-tmux ipcalc links pip pyvenv rpm rpmquery script scriptreplay sqlite3 \
+	'badblocks; xbash_get_opts_from_man "" badblocks' \
+	'chronyc; xbash_get_opts_from_man "" 1 chronyc' \
+	'mc --help-all | grep -v ^--colors' \
+	'mcdiff --help-all | grep -v ^--colors' \
+	'mcedit --help-all | grep -v ^--colors' \
+	'mcview --help-all | grep -v ^--colors' \
+	'python --help | sed '\''s/^\(file *:\)/\n\1/; s/\(--check-hash-based-pycs\) /\1  /; s/\(-[^:]\)*: /\1  /'\' \
+	'xmllint; xmllint --help 2>&1 | sed '\''/^[[:space:]]*--/s/:[[:space:]]/  /'\'
+
+xbash_comp_git() {
+	local i
+	xbash_compspecial_bash_completion || return 2
+	for i in "${!COMP_VALUES[@]}"; do
+		COMP_VALUES[i]=${COMP_VALUES[i]%%*( )}
+	done
+}

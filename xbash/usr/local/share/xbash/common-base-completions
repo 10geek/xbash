@@ -1,0 +1,1764 @@
+## Completions for xbash functions
+
+xbash_comp_xbash_checkutil() {
+	[ $COMP_ARGC -eq 1 ] && [ "${1::1}" = - ] &&
+		COMP_VALUES=("$(xbash_istartswith "$1" -s)") && return
+	xbash_compspecial_compgen multi -c
+}
+xbash_comp_xbash_compgen_bash_completion() {
+	if [ $COMP_ARGC -eq 1 ]; then
+		xbash_compspecial_command || return 1
+	else
+		COMP_ARGV=("${COMP_ARGV[@]:1}")
+		COMP_ARGC=$((COMP_ARGC - 1))
+		xbash_compspecial_bash_completion "${COMP_ARGV[0]}" || return 1
+	fi
+}
+xbash_comp_xbash_compgen_parse_help() {
+	case $COMP_ARGC in
+	1) COMP_VALUES=("$(xbash_istartswith "$1" starts_with)");;
+	2) COMP_VALUES=("$(xbash_istartswith "$1" match_all_short_opts)");;
+	*) return 2;;
+	esac
+}
+xbash_comp_xbash_escape() {
+	local i
+	for i in "${COMP_ARGV[@]}"; do
+		[ "$i" = -- ] && return 2
+	done
+	case $COMP_ARGC in
+	1) COMP_VALUES=("$(xbash_istartswith "$1" no_l_quote)");;
+	2) COMP_VALUES=("$(xbash_istartswith "$1" no_r_quote)");;
+	3) COMP_VALUES=("$(xbash_istartswith "$1" string_escaping)");;
+	4) COMP_VALUES=("$(xbash_istartswith "$1" separator)");;
+	*) return 2;;
+	esac
+}
+xbash_comp_xbash_err() {
+	case $COMP_ARGC in
+	1) COMP_VALUES=("$(xbash_istartswith "$1" err_message)");;
+	2) COMP_VALUES=("$(xbash_istartswith "$1" print_traceback)");;
+	*) return 1;;
+	esac
+}
+xbash_comp_xbash_get_line_completion() {
+	local result
+	case $COMP_ARGC in
+	1)
+		xbash_get_line_completion "$COMP_VALUE" result && COMP_VALUES=("$result")
+		COMP_NO_TRAILING_SPACE=1
+		;;
+	2) xbash_compspecial_compgen -v;;
+	*) return 1;;
+	esac
+}
+xbash_comp_xbash_get_opts_from_man() {
+	[ $COMP_ARGC -eq 1 ] && {
+		COMP_VALUES=("$(xbash_istartswith "$1" OPTIONS)")
+		return
+	}
+	COMP_ARGV=("${COMP_ARGV[@]:1}")
+	COMP_ARGV[0]=man
+	COMP_ARGC=$((COMP_ARGC - 1))
+	xbash_compcontext_command
+	return 1
+}
+xbash_comp_xbash_help() {
+	[ $# -ne 1 ] && return 1
+	COMP_VALUES=("$(
+		xbash_awk 'BEGIN {
+			state = 0
+			ARGV[1] = tolower(ARGV[1])
+		} {
+			if(!sub(/^# ?/, "") || substr($0, 1, 1) == "#") state = 0
+			else if(!state) {
+				if(!sub(/^Usage:[\t ]*/, "") || !match($0, /^[A-Za-z_][A-Za-z0-9_]*/)) next
+				func_name = substr($0, RSTART, RLENGTH)
+				if(!xbash_startswith(tolower(func_name), ARGV[1])) next
+				print func_name
+				state = 1
+			}
+		}' "$1" < "${BASH_SOURCE[-1]}" | LC_ALL=C sort -u | xbash_menu
+	)") || return 1
+}
+xbash_comp_xbash_includedirs() {
+	xbash_compspecial_fs dirsonly || return 1
+}
+xbash_comp_xbash_menu() {
+	[ $COMP_ARGC -eq 1 ] && COMP_VALUES=("$(xbash_istartswith "$1" multi)")
+}
+xbash_comp_xbash_move_substr() {
+	case $COMP_ARGC in
+	2|3|4) xbash_compspecial_compgen -v;;
+	*) return 1;;
+	esac
+}
+xbash_comp_xbash_pathvarmunge() {
+	case $COMP_ARGC in
+	1) xbash_compspecial_compgen -v;;
+	2) xbash_compspecial_fs;;
+	3) COMP_VALUES=("$(xbash_istartswith "$1" after)");;
+	*) return 1;;
+	esac
+}
+xbash_comp_xbash_semver_match() {
+	case $COMP_ARGC in
+	1) COMP_VALUES=("$(xbash_istartswith "$1" version)");;
+	2) COMP_VALUES=("$(xbash_istartswith "$1" range_set)");;
+	*) return 1;;
+	esac
+}
+xbash_comp_xbash_setcomp_common() { xbash_compspecial_compgen multi -c; }
+xbash_comp_xbash_shell_preset() {
+	COMP_COMMAND=grep
+	declare -F xbash_comp_grep > /dev/null || return 2
+	xbash_comp_grep "$@"
+}
+xbash_comp_xbash_startswith() {
+	[ $COMP_ARGC -eq 1 ] || return 2
+	COMP_VALUES=("$(xbash_istartswith "$1" substring)")
+}
+xbash_comp_xbash_istartswith() { xbash_comp_xbash_startswith "$@"; }
+xbash_comp_xbash_traceback() {
+	[ $COMP_ARGC -eq 1 ] && COMP_VALUES=("$(xbash_istartswith "$1" skip_last)")
+}
+xbash_comp_xbash_version_compare() {
+	case $COMP_ARGC in
+	1) COMP_VALUES=("$(xbash_istartswith "$1" version1)");;
+	2) COMP_VALUES=("$(xbash_istartswith "$1" operator)");;
+	3) COMP_VALUES=("$(xbash_istartswith "$1" version2)");;
+	*) return 1;;
+	esac
+}
+
+
+## Completions for bash builtins and functions
+
+xbash_comp__completion_loader() {
+	{ [ $# -eq 1 ] && xbash_compspecial_command; } || return 1
+}
+xbash_comp_alias() {
+	local context result alias_name
+	xbash_parse_comp_argv context p && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help help alias || return 1
+	elif xbash_move_substr '[^=][^=]*=' COMP_VALUE COMP_VALUE_BEFORE; then
+		xbash_get_line_completion "$COMP_VALUE" result && COMP_VALUES=("$result")
+		COMP_NO_TRAILING_SPACE=1
+	else
+		alias_name=$(compgen -c | xbash_istartswith "$1" | LC_ALL=C sort -u | xbash_menu) || return 1
+		COMP_VALUES=("$alias_name=")
+		[ -n "${BASH_ALIASES[$alias_name]+:}" ] &&
+		if [ $COMP_STRING_ESCAPING -eq 0 ]; then
+			COMP_VALUES=()
+			COMP_LINE_REPLACE=$(
+				xbash_escape 0 0 0 -- "$alias_name="
+				xbash_escape 0 0 2 -- "${BASH_ALIASES[$alias_name]}"
+			)
+		else
+			COMP_VALUES=("$alias_name=${BASH_ALIASES[$alias_name]}")
+		fi
+		COMP_NO_TRAILING_SPACE=1
+	fi
+}
+xbash_comp_bind() {
+	local context result
+	if xbash_parse_comp_argv context '[lPpSsVvX]' '[mqurfx]'
+	then case ${context[2]} in
+	m)
+		COMP_VALUES=("$(
+			xbash_istartswith "$COMP_VALUE" emacs emacs-ctlx emacs-meta emacs-standard vi vi-command vi-insert vi-move | xbash_menu
+		)")
+		;;
+	q|u) xbash_compspecial_compgen -A binding;;
+	r|x) ;;
+	f) return 2;;
+	*) return 1;;
+	esac || return 1
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help bind | sed $'\''s/^\([\t ]*-[qurfx]\{1,\}\)[\t ]\{1,\}/\\1 /'\' || return 1
+		return
+	elif [ ${context[0]} -ne 0 ]; then
+		return 1
+	fi
+	case ${context[2]} in
+	''|r|x) ;;
+	*) return;;
+	esac
+	[ "${context[2]}" != r ] &&
+	xbash_move_substr '[^:]*:[\t ]*' COMP_VALUE COMP_VALUE_BEFORE && {
+		if [ -n "${context[2]}" ]; then
+			xbash_get_line_completion "$COMP_VALUE" result && COMP_VALUES=("$result")
+			COMP_NO_TRAILING_SPACE=1
+		else
+			xbash_compspecial_compgen -A binding
+		fi
+		return
+	}
+	result=$(
+		{ bind -X; bind -p | LC_ALL=C sort -u; } | xbash_awk 'BEGIN {
+			ARGV[1] = tolower(ARGV[1])
+		} !/^[\t ]*(#.*)?$/ {
+			result = $0
+			if( \
+				sub(/^[^"]*"/, "", result) && sub(/".*/, "", result) && \
+				xbash_startswith(tolower(result), ARGV[1]) \
+			) print $0
+		}' "$COMP_VALUE" | xbash_menu
+	) || return 1
+	if [ "${context[2]}" = r ]; then
+		COMP_VALUES=("$(printf %s "$result" | sed 's/^[^"]*"//; s/".*//')")
+	else
+		COMP_VALUES=("\"$(printf %s "$result" | sed 's/^[^"]*"//; s/".*//')\": ")
+	fi
+}
+xbash_comp_builtin() {
+	if [ $# -eq 1 ]; then
+		xbash_compspecial_compgen -b || return 1
+	else
+		COMP_ARGV=("${COMP_ARGV[@]:1}")
+		COMP_ARGC=${#COMP_ARGV[@]}
+		xbash_compcontext_command
+		return 1
+	fi
+}
+xbash_comp_cd() {
+	local context
+	xbash_parse_comp_argv context '[LPe@]' && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help cd | grep -F $'\''\t'\' || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_compspecial_fs dirsonly || return 1
+	else return 1; fi
+}
+xbash_comp_command() {
+	local context
+	xbash_parse_comp_argv context '[pvV]'
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help help command || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_compspecial_compgen -b || return 1
+	else
+		COMP_ARGV=("${COMP_ARGV[@]:COMP_ARGC - context[0]}")
+		COMP_ARGC=${context[0]}
+		xbash_compcontext_command
+		return 1
+	fi
+}
+xbash_comp_compgen() { xbash_comp_complete "$@"; }
+xbash_comp_complete() {
+	xbash_is_func_self_invoked && {
+	case $1 in
+	help)
+		cat <<- EOF
+		-A <action>  Specifies the action used to generate a list of possible completions
+		-a, -A alias  Alias names
+		-A arrayvar  Shell array variables
+		-A binding  Names of readline library key bindings
+		-b, -A builtin  Shell builtin commands
+		-c, -A command  Command names
+		-d, -A directory  Directory names
+		-A disabled  Disabled shell builtin commands
+		-A enabled  Enabled shell builtin commands
+		-e, -A export  Exported shell variables
+		-f, -A file  File names
+		-A function  Shell functions
+		-g, -A group  System group names
+		-A helptopic  Help topics as accepted by the help builtin
+		-A hostname  Hostnames from the file specified by the HOSTFILE shell variable
+		-j, -A job  Names of background jobs
+		-k, -A keyword  Shell reserved words
+		-A running  Names of running background jobs
+		-s, -A service  Service names (from /etc/services)
+		-A setopt  Valid arguments for the -o option to the set builtin
+		-A shopt  Shell option names as accepted by the shopt builtin
+		-A signal  Signal names
+		-A stopped  Names of stopped background jobs
+		-u, -A user  System user names
+		-v, -A variable  Shell variables
+		-o <comp-option>  Controls several aspects of the compspec's behavior beyond the simple generation of completions
+		-C <command>  Execute command in a subshell and use its output as the list of completions
+		-F <function>  Execute shell function in the current shell. When it finishes, the possible completions are retrieved from the COMPREPLY array. When it is executed, \$1 is the name of the command whose arguments are being completed, \$2 is the word being completed, and \$3 is the word preceding the word being completed.
+		-G <globpat>  Specifies the filename expansion pattern which will be expanded to generate the possible completions.
+		-P <prefix>  Specifies the prefix to add at the beginning of each possible completion
+		-S <suffix>  Specifies the suffix to add at the end of each possible completion
+		-W <wordlist>  A list of words that is split using characters from a special IFS variable as separators and used as possible completions.
+		-X <filterpat>  Specifies the template used for the filename expansion. It is applied to the list of possible completions generated by the preceding options and arguments, and each completion matching filterpat is removed from the list. A leading "!" in filterpat negates the pattern; in this case, any completion not matching filterpat is removed.
+		EOF
+		[ "$COMP_COMMAND" = complete ] &&
+		help complete | LC_ALL=C awk 'BEGIN { context = 0 } {
+			if($0 ~ /^[\t ]*$/) context = 0
+			else if(substr($1, 1, 1) == "-") context = $1 ~ /^-[prDEI]$/
+			if(context) print $0
+		}'
+		;;
+	esac; return; }
+
+	local context result match_all_short_opts=0 IFS=$'\n'
+	if xbash_parse_comp_argv context '[abcdefgjksuvprDEI]' '[oAGWFCXPS]'
+	then case ${context[2]} in
+	A)
+		COMP_VALUES=("$(
+			xbash_comp_compgen help | xbash_compgen_parse_help |
+			xbash_awk 'BEGIN { ARGV[1] = tolower(ARGV[1]) } {
+				if(!match($0, /^-A [A-Za-z0-9_-]+/)) next
+				$0 = substr($0, 4)
+				if(xbash_startswith(tolower($1), ARGV[1])) print $0
+			}' "$COMP_VALUE" | xbash_menu
+		)") || return 1
+		COMP_VALUES[0]=${COMP_VALUES[0]%%[$'\t ']*}
+		;;
+	o)
+		COMP_VALUES=("$(
+			xbash_istartswith "$COMP_VALUE" bashdefault default dirnames filenames noquote nosort nospace plusdirs | xbash_menu
+		)")
+		;;
+	C)
+		xbash_get_line_completion "$COMP_VALUE" result && COMP_VALUES=("$result")
+		COMP_NO_TRAILING_SPACE=1
+		;;
+	F) xbash_compspecial_compgen -A function || return 1;;
+	*) return 2;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		[[ "$1" =~ ^-[^-] ]] && match_all_short_opts=1
+		result=$(
+			xbash_comp_compgen help | xbash_compgen_parse_help "$1" "$match_all_short_opts" |
+			xbash_menu multi
+		) || return 1
+		COMP_VALUES=($(printf %s "$result" | xbash_awk 'BEGIN {
+			match_all_short_opts = ARGV[2]
+			if(match_all_short_opts) {
+				ORS = ""
+				print ARGV[1]
+			}
+		} {
+			if(!match_all_short_opts) print $1
+			else print substr($0, 2, 1)
+			if($0 ~ /^[^ ]+ [A-Za-z0-9_-]+/) {
+				if(match_all_short_opts) print "\n"
+				match_all_short_opts = 0
+				ORS = "\n"
+				print $2
+			}
+		}' "$1" "$match_all_short_opts"))
+		[ $match_all_short_opts -eq 1 ] && [ ${#COMP_VALUES[@]} -eq 1 ] &&
+		COMP_NO_TRAILING_SPACE=1
+		return 0
+	elif [ "$COMP_COMMAND" = complete ]; then
+		xbash_compspecial_compgen -c || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		COMP_VALUES=("$(xbash_istartswith "$1" starts_with)")
+	fi
+}
+xbash_comp_compopt() {
+	local context
+	if xbash_parse_comp_argv context '[DEI]' o
+	then case ${context[2]} in
+	o)
+		COMP_VALUES=("$(
+			xbash_istartswith "$COMP_VALUE" bashdefault default dirnames filenames noquote nosort nospace plusdirs | xbash_menu
+		)")
+		;;
+	*) return 2;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help compopt | grep -F $'\''\t'\' || return 1
+	else
+		xbash_compspecial_compgen multi -c || return 1
+	fi
+}
+xbash_comp_declare() {
+	local context matched i action=var
+	xbash_parse_comp_argv context '[fFgpaAilnrtux]' && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help declare | grep -F $'\''\t'\' || return 1
+	else
+		for i in "${COMP_ARGV[@]:1:COMP_ARGC - context[0] - 1}"; do
+			case $i in
+			-*f*|-*F*) action=func;;
+			esac
+		done
+		if [ "$action" = func ]; then
+			xbash_compspecial_compgen multi -A function || return 1
+			return
+		elif xbash_move_substr '[A-Za-z_][A-Za-z0-9_]*=' COMP_VALUE COMP_VALUE_BEFORE matched; then
+			matched=${matched:: -1}
+			eval "xbash_istartswith \"\$COMP_VALUE\" \"\$$matched\" > /dev/null" || return 2
+			eval "COMP_VALUES=(\"\$$matched\")"
+			[ -z "${COMP_VALUES[0]}" ] && return 2
+		else
+			xbash_compspecial_compgen multi -v || return 1
+			[ ${#COMP_VALUES[@]} -eq 1 ] && COMP_VALUES[0]+==
+		fi
+		COMP_NO_TRAILING_SPACE=1
+	fi
+}
+xbash_comp_dirs() {
+	if [ "${1::1}" = - ]; then
+		xbash_compspecial_parse_help '' 'help "$COMP_COMMAND" | grep -v $'\''[\t ]*[+-]N[\t ]'\' 0 || return 1
+	else
+		COMP_VALUES=("$(xbash_awk 'BEGIN {
+			for(i = 2; i < argc; i++) {
+				j = i - 2
+				if(xbash_startswith("+" j, ARGV[1]))
+					printf("+%-3s %s\n", j, xbash_ml2ol(ARGV[i]))
+			}
+		}' "$1" "${DIRSTACK[@]}" | xbash_menu)") || return 1
+		COMP_VALUES[0]=${COMP_VALUES[0]%%[$'\t ']*}
+	fi
+}
+xbash_comp_disown() {
+	{ [ "${1::1}" = - ] && xbash_compspecial_parse_help help disown; } || return 1
+}
+xbash_comp_echo() {
+	local context result
+	xbash_parse_comp_argv context '[neE]' && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help help echo || return 1
+	else
+		{ LC_ALL=C awk -- 'BEGIN {
+			escapes_enabled = 0
+			for(i = 1; i < ARGC; i++) {
+				if(substr(ARGV[i], 1, 1) != "-") continue
+				if(ARGV[i] ~ /e[^E]*$/) escapes_enabled = 1
+				else if(ARGV[i] ~ /E[^e]*$/) escapes_enabled = 0
+			}
+			exit !escapes_enabled
+		}' "${COMP_ARGV[@]:1:COMP_ARGC - context[0] - 1}" && [ "${1: -1}" = \\ ]; } || return 2
+		result=$(
+			xbash_menu <<- EOF
+			\\\\           -- backslash
+			\\a           -- alert (bell)
+			\\b           -- backspace
+			\\c           -- suppress further output
+			\\e           -- escape character
+			\\E           -- escape character
+			\\f           -- form-feed
+			\\n           -- newline
+			\\r           -- carriage-return
+			\\t           -- horizontal tabulator
+			\\v           -- vertical tabulator
+			\\0<NNN>      -- the character whose ASCII code is NNN (octal). NNN can be 0 to 3 octal digits.
+			\\x<HH>       -- the eight-bit character whose value is HH (hexadecimal). HH can be 1 or 2 hex digits.
+			\\u<HHHH>     -- the Unicode character whose value is the hexadecimal value HHHH. HHHH can be 1 to 4 hex digits.
+			\\U<HHHHHHHH> -- the Unicode character whose value is the hexadecimal value HHHHHHHH. HHHHHHHH can be 1 to 8 hex digits.
+			EOF
+		) || return
+		COMP_VALUES=("$COMP_VALUE${result:1:1}")
+	fi
+}
+xbash_comp_enable() {
+	local context arg do_disable=0
+	if xbash_parse_comp_argv context '[anpsd]' f; then
+		return 2
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help enable | grep -F $'\''\t'\' || return 1
+	else
+		for arg in "${COMP_ARGV[@]:1:COMP_ARGC - context[0] - 1}"; do
+			case $arg in
+			-*n*) do_disable=1; break;;
+			esac
+		done
+		if [ $do_disable -eq 1 ]; then
+			xbash_compspecial_compgen multi -A enabled
+		else
+			xbash_compspecial_compgen multi -A disabled
+		fi || return 1
+	fi
+}
+xbash_comp_eval() {
+	xbash_compspecial_eval 1
+}
+xbash_comp_exec() {
+	local context
+	if xbash_parse_comp_argv context '[cl]' a; then
+		return 2
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help help exec || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_compspecial_command || return 1
+	else
+		COMP_ARGV=("${COMP_ARGV[@]:COMP_ARGC - context[0]}")
+		COMP_ARGC=${context[0]}
+		xbash_compcontext_command
+		return 1
+	fi
+}
+xbash_comp_export() {
+	local context arg matched action=var
+	xbash_parse_comp_argv context '[fnp]' && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help help export || return 1
+	else
+		for arg in "${COMP_ARGV[@]:1:COMP_ARGC - context[0] - 1}"; do
+			case $arg in
+			-*p*) return 1;;
+			-*n*) action=remove_var;;
+			-*f*) action=func;;
+			esac
+		done
+		case $action in
+		var)
+			if xbash_move_substr '[A-Za-z_][A-Za-z0-9_]*=' COMP_VALUE COMP_VALUE_BEFORE matched; then
+				matched=${matched:: -1}
+				eval "xbash_istartswith \"\$COMP_VALUE\" \"\$$matched\" > /dev/null" || return 2
+				eval "COMP_VALUES=(\"\$$matched\")"
+				[ -z "${COMP_VALUES[0]}" ] && return 2
+			else
+				xbash_compspecial_compgen multi -v || return 1
+				[ ${#COMP_VALUES[@]} -eq 1 ] && [ "${COMP_VALUES[0]}" = "$COMP_VALUE" ] && COMP_VALUES[0]+==
+			fi
+			COMP_NO_TRAILING_SPACE=1
+			;;
+		remove_var) xbash_compspecial_compgen multi -v || return 1;;
+		func) xbash_compspecial_compgen multi -A function || return 1;;
+		esac
+	fi
+}
+xbash_comp_fc() {
+	local context
+	if xbash_parse_comp_argv context '[lnfs]' e
+	then case ${context[2]} in
+	e) xbash_compspecial_command;;
+	*) return 1;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help fc; printf %s\\n "-s  re-execute command after the substitution OLD=NEW is performed"' || return 1
+	else return 1; fi
+}
+xbash_comp_hash() {
+	local context
+	if xbash_parse_comp_argv context '[dlrl]' p
+	then case ${context[2]} in
+	p) return 2;;
+	*) return 1;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help hash | awk '\''{
+			if(!index($0, "\t")) next
+			if($1 == "NAME") print ""
+			print $0
+		}'\' || return 1
+	else
+		xbash_compspecial_compgen multi -c
+	fi
+}
+xbash_comp_help() {
+	local context
+	xbash_parse_comp_argv context '[dms]'
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help help help || return 1
+	else
+		xbash_compspecial_compgen multi -A helptopic || return 1
+	fi
+}
+xbash_comp_history() {
+	local context action
+	if xbash_parse_comp_argv context '[canrwps]' d
+	then case ${context[2]} in
+	d)
+		COMP_VALUES=("$(
+			xbash_compgen_history | LC_ALL=C awk '{ printf("%-3s %s\n", NR, $0) }' |
+			xbash_menu
+		)") || return 1
+		COMP_VALUES[0]=${COMP_VALUES[0]%% *}
+		;;
+	*) return 1;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help history' || return 1
+	else
+		for ARG in "${COMP_ARGV[@]:1:COMP_ARGC - context[0] - 1}"; do
+			case $ARG in
+			-*s*) action=append;;
+			esac
+		done
+		[ "$action" = append ] || return 1
+		xbash_compspecial_eval $((COMP_ARGC - context[0]))
+	fi
+}
+xbash_comp_kill() {
+	local context result sig_comp=0 IFS=$'\n'
+	xbash_parse_comp_argv context '[^sn]' '[sn]'
+	if [ ${context[1]} -eq 1 ]; then sig_comp=1
+	elif [ "${context[2]}" = s ]; then sig_comp=2
+	elif [ "${context[2]}" = n ]; then sig_comp=3
+	fi
+	[ $sig_comp -eq 0 ] && {
+		xbash_compspecial_pid multi onlyown || return 1
+		return
+	}
+	result=$(
+		xbash_compgen_signals | xbash_awk 'BEGIN {
+			ARGV[2] = toupper(ARGV[2])
+			if(ARGV[1] == 1) sub(/^-/, "", ARGV[2])
+		} {
+			if(ARGV[1] == 3) {
+				if(!xbash_startswith($1, ARGV[2])) next
+			} else if(!xbash_startswith($2, ARGV[2])) next
+			print $0
+		}' "$sig_comp" "$COMP_VALUE" | xbash_menu
+	) || return 1
+	COMP_VALUES=("$(LC_ALL=C awk -- 'BEGIN {
+		split(ARGV[2], result)
+		if(ARGV[1] == 1) print "-" result[2]
+		else if(ARGV[1] == 2) print result[2]
+		else if(ARGV[1] == 3) {
+			gsub(/[^0-9]/, "", result[1])
+			print result[1]
+		}
+	}' "$sig_comp" "$result")")
+}
+xbash_comp_mapfile() {
+	local context
+	if xbash_parse_comp_argv context t '[dnOsuCc]'
+	then case ${context[2]} in
+	C) xbash_compspecial_compgen -A function || return 1;;
+	*) return 2;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help mapfile | grep -F $'\''\t'\' || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_compspecial_compgen -A arrayvar
+	else return 1; fi
+}
+xbash_comp_popd() { xbash_comp_dirs "$@"; }
+xbash_comp_printf() {
+	local context result
+	if xbash_parse_comp_argv context '' v
+	then case ${context[2]} in
+	v) xbash_compspecial_compgen -v || return 1;;
+	*) return 2;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help help printf || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		if [ "${1: -1}" = % ]; then
+			result=$(
+				xbash_menu <<- EOF
+				%d -- Print the associated argument as signed decimal number
+				%i -- Same as %d
+				%o -- Print the associated argument as unsigned octal number
+				%u -- Print the associated argument as unsigned decimal number
+				%x -- Print the associated argument as unsigned hexadecimal number with lower-case hex-digits (a-f)
+				%X -- Same as %x, but with upper-case hex-digits (A-F)
+				%f -- Interpret and print the associated argument as floating point number
+				%e -- Interpret the associated argument as double, and print it in <N>±e<N> format
+				%E -- Same as %e, but with an upper-case E in the printed format
+				%g -- Interprets the associated argument as double, but prints it like %f or %e
+				%G -- Same as %g, but print it like %E
+				%c -- Interprets the associated argument as character: only the first character of a given argument is printed
+				%s -- Interprets the associated argument literally as string
+				%b -- Interprets the associated argument as a string and interpreting escape sequences in it
+				%q -- Prints the associated argument in a format, that it can be re-used as shell-input (escaped spaces etc..)
+				EOF
+			)
+		elif [ "${1: -1}" = \\ ]; then
+			result=$(
+				xbash_menu <<- EOF
+				\\\\           -- backslash
+				\\a           -- alert (bell)
+				\\b           -- backspace
+				\\e           -- escape character
+				\\E           -- escape character
+				\\f           -- form-feed
+				\\n           -- newline
+				\\r           -- carriage-return
+				\\t           -- horizontal tabulator
+				\\v           -- vertical tabulator
+				\\<NNN>       -- the character whose ASCII code is NNN (octal). NNN can be 1 to 3 octal digits.
+				\\0<NNN>      -- the character whose ASCII code is NNN (octal). NNN can be 0 to 3 octal digits.
+				\\x<HH>       -- the eight-bit character whose value is HH (hexadecimal). HH can be 1 or 2 hex digits.
+				\\u<HHHH>     -- the Unicode character whose value is the hexadecimal value HHHH. HHHH can be 1 to 4 hex digits.
+				\\U<HHHHHHHH> -- the Unicode character whose value is the hexadecimal value HHHHHHHH. HHHHHHHH can be 1 to 8 hex digits.
+				EOF
+			)
+		else
+			return 2
+		fi || return
+		COMP_VALUES=("$COMP_VALUE${result:1:1}")
+		[ "${COMP_VALUES[0]: -1}" != '<' ] || COMP_VALUES=("${COMP_VALUE}0")
+	else
+		return 2
+	fi
+}
+xbash_comp_pushd() {
+	[ "${1::1}" = - ] || [ "${1::1}" = + ] || return 2
+	xbash_comp_dirs "$@"
+}
+xbash_comp_pwd() {
+	local context
+	xbash_parse_comp_argv context '[LP]' && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help pwd | grep -F $'\''\t'\' || return 1
+	else
+		return 1
+	fi
+}
+xbash_comp_read() {
+	local context
+	if xbash_parse_comp_argv context '[ers]' '[adinNptu]'
+	then case ${context[2]} in
+	a) xbash_compspecial_compgen -A arrayvar;;
+	t) COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" 0.2)");;
+	*) return 2;;
+	esac || return 1
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	else
+		xbash_compspecial_compgen multi -v || return 1
+	fi
+}
+xbash_comp_readarray() { xbash_comp_mapfile "$@"; }
+xbash_comp_readonly() {
+	local context arg matched action=var IFS='$\n'
+	xbash_parse_comp_argv context '[aAfp]' && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help help readonly || return 1
+	else
+		for arg in "${COMP_ARGV[@]:1:COMP_ARGC - context[0] - 1}"; do
+			case $arg in
+			-*p*) return 1;;
+			-*f*) action=func;;
+			esac
+		done
+		case $action in
+		var)
+			if xbash_move_substr '[A-Za-z_][A-Za-z0-9_]*=' COMP_VALUE COMP_VALUE_BEFORE matched; then
+				matched=${matched:: -1}
+				eval "xbash_istartswith \"\$COMP_VALUE\" \"\$$matched\" > /dev/null" || return 2
+				eval "COMP_VALUES=(\"\$$matched\")"
+				[ -z "${COMP_VALUES[0]}" ] && return 2
+			else
+				xbash_compspecial_compgen multi -v || return 1
+				[ ${#COMP_VALUES[@]} -eq 1 ] && [ "${COMP_VALUES[0]}" = "$COMP_VALUE" ] && COMP_VALUES[0]+==
+			fi
+			COMP_NO_TRAILING_SPACE=1
+			;;
+		func) xbash_compspecial_compgen multi -A function || return 1;;
+		esac
+	fi
+}
+xbash_comp_set() {
+	local func is_invoked_by_comp_func=0
+	for func in "${FUNCNAME[@]:1}"; do
+		{ [ "$func" = "${FUNCNAME[0]}" ] || [ "$func" = xbash_comp_shopt ]; } && {
+			is_invoked_by_comp_func=1
+			break
+		}
+	done
+	[ $is_invoked_by_comp_func -ne 0 ] && {
+	case $1 in
+	get_options_info)
+		cat <<- EOF
+		a:allexport:Mark variables which are modified or created for export.
+		B:braceexpand:The shell will perform brace expansion.
+		:emacs:Use an emacs-style line editing interface.
+		e:errexit:Exit immediately if a command exits with a non-zero status.
+		E:errtrace:If set, the ERR trap is inherited by shell functions.
+		T:functrace:If set, the DEBUG and RETURN traps are inherited by shell functions.
+		h:hashall:Remember the location of commands as they are looked up.
+		H:histexpand:Enable ! style history substitution. This flag is on by default when the shell is interactive.
+		:history:Enable command history.
+		:ignoreeof:The shell will not exit upon reading EOF.
+		:interactive-comments:Allow comments to appear in interactive commands
+		k:keyword:All assignment arguments are placed in the environment for a command, not just those that precede the command name.
+		m:monitor:Job control is enabled.
+		C:noclobber:Disallow existing regular files to be overwritten by redirection of output.
+		n:noexec:Read commands but do not execute them.
+		f:noglob:Disable file name generation (globbing).
+		:nolog:Currently accepted but ignored.
+		b:notify:Notify of job termination immediately.
+		u:nounset:Treat unset variables as an error when substituting.
+		t:onecmd:Exit after reading and executing one command.
+		P:physical:Do not resolve symbolic links when executing commands such as cd which change the current directory.
+		:pipefail:The return value of a pipeline is the status of the last command to exit with a non-zero status, or zero if no command exited with a non-zero status.
+		:posix:Change the behavior of bash where the default operation differs from the Posix standard to match the standard.
+		p:privileged:Turned on whenever the real and effective user ids do not match. Disables processing of the \$ENV file and importing of shell functions. Turning this option off causes the effective uid and gid to be set to the real uid and gid.
+		v:verbose:Print shell input lines as they are read.
+		:vi:Use a vi-style line editing interface.
+		x:xtrace:Print commands and their arguments as they are executed.
+		EOF
+		;;
+	esac; return; }
+
+	local result IFS=$'\n'
+	for i in "${COMP_ARGV[@]:1}"; do
+		{ [ "$i" = -- ] || [ "$i" = - ]; } && return 2
+	done
+	! { [ $# -gt 1 ] && [[ "$2" = [+-]*o ]]; } && [ -n "$1" ] && [[ "$1" != [+-]* ]] && return 1
+	result=$(
+		{ set -o; echo; xbash_comp_set get_options_info; } | xbash_awk 'BEGIN {
+			context = 1
+			opt_name_max_len = 0
+			comp_opt_names = argc > 2 && ARGV[2] ~ /^[+-].*o$/
+			if(comp_opt_names) {
+				opts_sign = substr(ARGV[2], 1, 1)
+				ARGV[1] = tolower(ARGV[1])
+			} else if(ARGV[1] != "") opts_sign = substr(ARGV[1], 1, 1)
+			else opts_sign = ""
+			if(opts_sign == "") opts_state = -1
+			else opts_state = opts_sign == "+"
+		} {
+			if(context == 1) {
+				if($0 == "") { context = 2; FS = ":"; next }
+				opt_state[$1] = $2 == "on"
+				if(length($1) > opt_name_max_len) opt_name_max_len = length($1)
+			} else if($2 != "" && (opts_state == -1 || opt_state[$2] == opts_state)) {
+				if(comp_opt_names) {
+					if(xbash_startswith($2, ARGV[1]))
+						printf("%-" opt_name_max_len "s -- %s\n", $2, $3)
+				} else {
+					sign = opt_state[$2] ? "+" : "-"
+					if($1 != "") printf(sign "%-" (opt_name_max_len + 2) "s -- %s\n", $1, $3)
+					if($2 != "") printf(sign "o %-" opt_name_max_len "s -- %s\n", $2, $3)
+				}
+			}
+		}' "$@" | xbash_menu multi
+	) || return 1
+	COMP_VALUES=($(printf %s "$result" | LC_ALL=C awk -- 'BEGIN {
+		comp_opt_names = ARGC > 2 && ARGV[2] ~ /^[+-].*o$/
+		if(comp_opt_names) sign = substr(ARGV[2], 1, 1)
+		else {
+			is_opts_beginning = ARGV[1] == ""
+			if(!is_opts_beginning) {
+				opts_sign = substr(ARGV[1], 1, 1)
+				printf("%s", ARGV[1])
+			}
+		}
+		ARGC = 1
+	} {
+		if(comp_opt_names) {
+			if(NR != 1) print sign "o"
+			print $1
+		} else {
+			sign = substr($1, 1, 1); opt = substr($1, 2, 1)
+			if(is_opts_beginning) printf("%s", sign)
+			else if(sign != opts_sign) printf("\n%s", sign)
+			if(is_opts_beginning != (opt == "o"))
+				is_opts_beginning = !is_opts_beginning
+			printf("%s", opt)
+			if(opt == "o") print "\n" $2
+			else opts_sign = sign
+		}
+	}' "$@"))
+}
+xbash_comp_shopt() {
+	xbash_is_func_self_invoked && {
+	case $1 in
+	get_options_info)
+		cat <<- EOF
+		:assoc_expand_once:If set, the shell suppresses multiple evaluation of associative array subscripts during arithmetic expression evaluation, while executing builtins that can perform variable assignments, and while executing builtins that perform array dereferencing.
+		:autocd:If set, a command name that is the name of a directory is executed as if it were the argument to the cd command. This option is only used by interactive shells.
+		:cdable_vars:If set, an argument to the cd builtin command that is not a directory is assumed to be the name of a variable whose value is the directory to change to.
+		:cdspell:If set, minor errors in the spelling of a directory component in a cd command will be corrected. The errors checked for are transposed characters, a missing character, and a character too many. If a correction is found, the corrected path is printed, and the command proceeds. This option is only used by interactive shells.
+		:checkhash:If set, Bash checks that a command found in the hash table exists before trying to execute it. If a hashed command no longer exists, a normal path search is performed.
+		:checkjobs:If set, Bash lists the status of any stopped and running jobs before exiting an interactive shell. If any jobs are running, this causes the exit to be deferred until a second exit is attempted without an intervening command. The shell always postpones exiting if any jobs are stopped.
+		:checkwinsize:If set, Bash checks the window size after each external (non-builtin) command and, if necessary, updates the values of LINES and COLUMNS.
+		:cmdhist:If set, Bash attempts to save all lines of a multiple-line command in the same history entry. This allows easy re-editing of multi-line commands. This option only has an effect if command history is enabled.
+		:compat31:If set, Bash changes its behavior to that of version 3.1 with respect to quoted arguments to the conditional command's "=~" operator and with respect to locale-specific string comparison when using the [[ conditional command's "<" and ">" operators. Bash versions prior to bash-4.1 use ASCII collation and strcmp(3); bash-4.1 and later use the current locale's collation sequence and strcoll(3).
+		:compat32:If set, Bash changes its behavior to that of version 3.2 with respect to locale-specific string comparison when using the [[ conditional command's "<" and ">" operators and the effect of interrupting a command list. Bash versions 3.2 and earlier continue with the next command in the list after one terminates due to an interrupt.
+		:compat40:If set, Bash changes its behavior to that of version 4.0 with respect to locale-specific string comparison when using the [[ conditional command's "<" and ">" operators and the effect of interrupting a command list. Bash versions 4.0 and later interrupt the list as if the shell received the interrupt; previous versions continue with the next command in the list.
+		:compat41:If set, Bash, when in POSIX mode, treats a single quote in a double-quoted parameter expansion as a special character. The single quotes must match (an even number) and the characters between the single quotes are considered quoted. This is the behavior of POSIX mode through version 4.1. The default Bash behavior remains as in previous versions.
+		:compat42:If set, Bash does not process the replacement string in the pattern substitution word expansion using quote removal.
+		:compat43:If set, Bash does not print a warning message if an attempt is made to use a quoted compound array assignment as an argument to declare, makes word expansion errors non-fatal errors that cause the current command to fail (the default behavior is to make them fatal errors that cause the shell to exit), and does not reset the loop state when a shell function is executed (this allows break or continue in a shell function to affect loops in the caller's context).
+		:compat44:If set, Bash saves the positional parameters to BASH_ARGV and BASH_ARGC before they are used, regardless of whether or not extended debugging mode is enabled.
+		:complete_fullquote:If set, Bash quotes all shell metacharacters in filenames and directory names when performing completion. If not set, Bash removes metacharacters such as the dollar sign from the set of characters that will be quoted in completed filenames when these metacharacters appear in shell variable references in words to be completed. This means that dollar signs in variable names that expand to directories will not be quoted; however, any dollar signs appearing in filenames will not be quoted, either. This is active only when bash is using backslashes to quote completed filenames.
+		:direxpand:If set, Bash replaces directory names with the results of word expansion when performing filename completion. This changes the contents of the readline editing buffer. If not set, Bash attempts to preserve what the user typed.
+		:dirspell:If set, Bash attempts spelling correction on directory names during word completion if the directory name initially supplied does not exist.
+		:dotglob:If set, Bash includes filenames beginning with a "." in the results of filename expansion. The filenames "." and ".." must always be matched explicitly, even if dotglob is set.
+		:execfail:If set, a non-interactive shell will not exit if it cannot execute the file specified as an argument to the exec builtin command. An interactive shell does not exit if exec fails.
+		:expand_aliases:If set, aliases are expanded.
+		:extdebug:If set at shell invocation, or in a shell startup file, arrange to execute the debugger profile before the shell starts, identical to the --debugger option.
+		:extglob:If set, the extended pattern matching features described above are enabled.
+		:extquote:If set, \$'string' and \$"string" quoting is performed within \${parameter} expansions enclosed in double quotes.
+		:failglob:If set, patterns which fail to match filenames during filename expansion result in an expansion error.
+		:force_fignore:If set, the suffixes specified by the FIGNORE shell variable cause words to be ignored when performing word completion even if the ignored words are the only possible completions.
+		:globasciiranges:If set, range expressions used in pattern matching bracket expressions behave as if in the traditional C locale when performing comparisons. That is, the current locale's collating sequence is not taken into account, so "b" will not collate between "A" and "B", and upper-case and lower-case ASCII characters will collate together.
+		:globstar:If set, the pattern "**" used in a filename expansion context will match all files and zero or more directories and subdirectories. If the pattern is followed by a "/", only directories and subdirectories match.
+		:gnu_errfmt:If set, shell error messages are written in the standard GNU error message format.
+		:histappend:If set, the history list is appended to the file named by the value of the HISTFILE variable when the shell exits, rather than overwriting the file.
+		:histreedit:If set, and Readline is being used, a user is given the opportunity to re-edit a failed history substitution.
+		:histverify:If set, and Readline is being used, the results of history substitution are not immediately passed to the shell parser. Instead, the resulting line is loaded into the Readline editing buffer, allowing further modification.
+		:hostcomplete:If set, and Readline is being used, Bash will attempt to perform hostname completion when a word containing a "@" is being completed.
+		:huponexit:If set, Bash will send SIGHUP to all jobs when an interactive login shell exits.
+		:inherit_errexit:If set, command substitution inherits the value of the errexit option, instead of unsetting it in the subshell environment. This option is enabled when POSIX mode is enabled.
+		:interactive_comments:Allow a word beginning with "#" to cause that word and all remaining characters on that line to be ignored in an interactive shell.
+		:lastpipe:If set, and job control is not active, the shell runs the last command of a pipeline not executed in the background in the current shell environment.
+		:lithist:If set, and the cmdhist option is set, multi-line commands are saved to the history with embedded newlines rather than using semicolon separators where possible.
+		:localvar_inherit:If set, local variables inherit the value and attributes of a variable of the same name that exists at a previous scope before any new value is assigned. The nameref attribute is not inherited.
+		:localvar_unset:If set, calling unset on local variables in previous function scopes marks them so subsequent lookups find them unset until that function returns. This is identical to the behavior of unsetting local variables at the current function scope.
+		:login_shell:The shell sets this option if it is started as a login shell. The value may not be changed.
+		:mailwarn:If set, and a file that Bash is checking for mail has been accessed since the last time it was checked, the message "The mail in mailfile has been read" is displayed.
+		:no_empty_cmd_completion:If set, and Readline is being used, Bash will not attempt to search the PATH for possible completions when completion is attempted on an empty line.
+		:nocaseglob:If set, Bash matches filenames in a case-insensitive fashion when performing filename expansion.
+		:nocasematch:If set, Bash matches patterns in a case-insensitive fashion when performing matching while executing case or [[ conditional commands, when performing pattern substitution word expansions, or when filtering possible completions as part of programmable completion.
+		:nullglob:If set, Bash allows filename patterns which match no files to expand to a null string, rather than themselves.
+		:progcomp:If set, the programmable completion facilities are enabled.
+		:progcomp_alias:If set, and programmable completion is enabled, Bash treats a command name that doesn't have any completions as a possible alias and attempts alias expansion. If it has an alias, Bash attempts programmable completion using the command word resulting from the expanded alias.
+		:promptvars:If set, prompt strings undergo parameter expansion, command substitution, arithmetic expansion, and quote removal after being expanded.
+		:restricted_shell:The shell sets this option if it is started in restricted mode. The value may not be changed. This is not reset when the startup files are executed, allowing the startup files to discover whether or not a shell is restricted.
+		:shift_verbose:If set, the shift builtin prints an error message when the shift count exceeds the number of positional parameters.
+		:sourcepath:If set, the source builtin uses the value of PATH to find the directory containing the file supplied as an argument.
+		:xpg_echo:If set, the echo builtin expands backslash-escape sequences by default.
+		EOF
+		;;
+	esac; return; }
+
+	local context result opt_type=shopt opt_state shopt_args IFS
+	IFS=$XBASH_DEFAULT_IFS
+	xbash_parse_comp_argv context '[opqsu]' && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help shopt' || return 1
+	else
+		for i in "${COMP_ARGV[@]:1:COMP_ARGC - context[0] - 1}"; do
+			case $i in
+			-*o*) opt_type=set;;
+			esac
+			case $i in
+			-*s*) opt_state=off;;
+			-*u*) opt_state=on;;
+			esac
+		done
+		[ "$opt_type" = set ] && shopt_args+=' -o'
+		if [ "$opt_state" = on ]; then
+			shopt_args+=' -s'
+		elif [ "$opt_state" = off ]; then
+			shopt_args+=' -u'
+		fi
+		result=$(
+			{
+				xbash_comp_set get_options_info
+				xbash_comp_shopt get_options_info
+				echo
+				shopt $shopt_args
+			} | xbash_awk 'BEGIN {
+				FS = ":"; context = 1
+				opts_len = opt_name_max_len = 0
+				ARGV[1] = tolower(ARGV[1])
+			} {
+				if(context == 1) {
+					if($0 == "") { context = 2; FS = " "; next }
+					opt_desc[$2] = $3
+				} else if(xbash_startswith($1, ARGV[1])) {
+					opts[++opts_len] = $1; opt_state[opts_len] = $2
+					if(length($1) > opt_name_max_len) opt_name_max_len = length($1)
+				}
+			} END {
+				for(i = 1; i <= opts_len; i++)
+					printf("%-" opt_name_max_len "s %5s -- %s\n", opts[i], "[" opt_state[i] "]", opt_desc[opts[i]])
+			}' "$1" | xbash_menu multi
+		) || return 1
+		IFS=$'\n'
+		COMP_VALUES=($(printf %s "$result" | LC_ALL=C awk '{ print $1 }'))
+	fi
+}
+xbash_comp_source() {
+	xbash_compspecial_command || return 1
+}
+xbash_comp_test() {
+	[ $COMP_ARGC -eq 1 ] || [ "${1::1}" = - ] || return 2
+	xbash_compspecial_parse_help '' 'help test | LC_ALL=C awk '\''{
+		if(($1 == "FILE1" && $3 == "FILE2") || ($1 == "EXPR1" && $3 == "EXPR2")) {
+			printf("%s", $2 " [ " $1 " " $2 " " $3 " ]")
+			$1 = $2 = $3 = ""
+			print "  " $0
+		} else if($1 == "arg1" && $2 == "OP" && $3 == "arg2") {
+			while((getline) > 0) if($0 == "") break
+		} else if(!($1 == "!" && $2 == "EXPR")) {
+			if($1 == "STRING") $1 = ""; print $0
+		}
+	} END {
+		l = split("-eq == -ne != -lt < -le <= -gt > -ge >=", tests)
+		for(i = 1; i <= l; i += 2)
+			print tests[i] " [ NUM1 " tests[i] " NUM2 ]  Arithmetic test (" tests[i + 1] ")."
+	}'\' 0 || return
+	[ $COMP_ARGC -eq 1 ] && [ ${#COMP_VALUES[@]} -eq 1 ] && {
+		case ${COMP_VALUES[0]} in
+		-eq|-ne|-lt|-le|-gt|-ge)
+			COMP_LINE_REPLACE="\$ ${COMP_VALUES[0]} ";;
+		-nt|-ot|-ef)
+			COMP_LINE_REPLACE="\"\$\" ${COMP_VALUES[0]} \"\$\"";;
+		*) return;;
+		esac
+		COMP_VALUES=()
+	}
+	return 0
+}
+xbash_comp_trap() {
+	local context result IFS=$'\n'
+	xbash_parse_comp_argv context '[lp]' && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help trap | grep -F $'\''\t'\' || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_get_line_completion "$COMP_VALUE" result && COMP_VALUES=("$result")
+		COMP_NO_TRAILING_SPACE=1
+	else
+		COMP_VALUES=($(
+			compgen -A signal | sed 's/^SIG//' | xbash_istartswith "$1" |
+			xbash_menu multi
+		)) || return 1
+	fi
+}
+xbash_comp_type() {
+	local context
+	xbash_parse_comp_argv context '[afPpt]' && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help type' || return 1
+	else
+		xbash_compspecial_command || return 1
+	fi
+}
+xbash_comp_typeset() { xbash_comp_declare "$@"; }
+xbash_comp_ulimit() {
+	local context i opt_hard_limit
+	if xbash_parse_comp_argv context '[SHa]' '[bcdefiklmnpqrstuvxPT]'
+	then case ${context[2]} in
+	[bcdefiklmnpqrstuvxPT])
+		for i in "${COMP_ARGV[@]:1}" "$COMP_VALUE_BEFORE"; do
+			case $i in
+			-*a*) return 1;;
+			-*S*) opt_hard_limit=;;
+			-*H*) opt_hard_limit=H;;
+			esac
+		done
+		COMP_VALUES=("$(ulimit -"$opt_hard_limit${context[2]}" 2>/dev/null | xbash_istartswith "$COMP_VALUE")")
+		;;
+	*) return 1;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'help ulimit | grep -F $'\''\t'\' || return 1
+	else return 1; fi
+}
+xbash_comp_umask() {
+	local context
+	xbash_parse_comp_argv context '[pS]' && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help help umask || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		COMP_VALUES=("$(umask | xbash_startswith "$1")")
+	else return 1; fi
+}
+xbash_comp_unalias() {
+	local context result
+	xbash_parse_comp_argv context a && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	else
+		result=$(alias -p | xbash_awk 'BEGIN {
+			ARGV[1] = tolower(ARGV[1])
+		} {
+			$1 = ""; sub(/^[\t ]+/, "")
+			alias_name = $0; sub(/=.*/, "", alias_name)
+			if(!xbash_startswith(tolower(alias_name), ARGV[1])) next
+			print $0
+		}' "$COMP_VALUE" | xbash_menu multi) || return 1
+		COMP_VALUES=($(printf %s "$result" | sed 's/=.*//'))
+	fi
+}
+xbash_comp_unset() {
+	local context i action=varfunc IFS=$'\n'
+	xbash_parse_comp_argv context '[fnp]' && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help help unset || return 1
+	else
+		for i in "${COMP_ARGV[@]:1:COMP_ARGC - context[0] - 1}"; do
+			case $i in
+			-*f*) action=func;;
+			-*v*) action=var;;
+			esac
+		done
+		COMP_VALUES=($({
+			[ "$action" = func ] || compgen -v | LC_ALL=C sort -u
+			[ "$action" = var ] || compgen -A function | LC_ALL=C sort -u
+		} | xbash_istartswith "$1" | xbash_menu multi)) || return 1
+	fi
+}
+xbash_comp_wait() {
+	local context
+	xbash_parse_comp_argv context '[fn]' && return 1
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help '' 'cat <<- EOF
+		-n  Wait for the next job to terminate and return its exit status.
+		-f  Wait for the specified ID to terminate, instead of waiting for it to change status.
+		EOF
+		' || return 1
+	else
+		xbash_compspecial_shell_child_pid multi || return 1
+	fi
+}
+
+
+## Completions for various executables
+
+# Use the xbash_compspecial_common() completion function for all commands that
+# uses the _longopt() function in bash completion and other listed in the
+# arguments. The "!" character before the argument means not to apply a
+# completion to the specified command.
+xbash_setcomp_common \
+	apropos base32 base64 basename bc blkid bootctl busctl cal cat cfdisk \
+	chage chcon chcpu chgpasswd chgrp chmem chmod chpasswd chroot chrt cmp \
+	column comm coredumpctl cp cpio cronnext crontab csplit ctstat cut depmod \
+	df diff diff3 dir dirname dmesg du fdisk file findmnt finger flock fmt \
+	fold free fsck fsfreeze fstrim fuser getconf getent getfacl gpasswd gpg \
+	grep groupadd groupdel groupmems groupmod grub2-install grub2-mkconfig \
+	gunzip gzip halt hardlink head hexdump hostname hostnamectl hwclock iconv \
+	id ionice join journalctl last lastlog ldconfig locale localectl logger \
+	loginctl losetup ls lscpu lsinitrd lsipc lslocks lslogins lsmem lsmod lsns \
+	man md5sum mkdir mkfifo mknod mkpasswd mkswap mktemp modinfo modprobe more \
+	mount mv networkctl nft nice nl nproc nsenter nstat od partx passwd paste \
+	perl pgrep pidof ping ping6 pkill poweroff pr pstree readlink realpath \
+	reboot rename renice reset resolvconf resolvectl rfkill rm rmdir rmmod \
+	sdiff sed seq setfacl setpriv setsid sfdisk sftp sha{1,224,256,384,512}sum \
+	shred shuf skill slabtop sort split ss swapoff swapon sync systemd-analyze \
+	systemd-cgls systemd-cgtop systemd-escape tac tail taskset tee touch tr \
+	tracepath tracepath6 truncate udevadm umount uname uniq unxz uptime vi \
+	vmstat w wall watch wc whatis whereis which who xz zramctl \
+	'adduser --help | sed '\''s/|/,/'\' \
+	'debugfs; xbash_get_opts_from_man "" debugfs' \
+	'deluser --help | sed '\''s/|/,/'\' \
+	'ebtables; xbash_get_opts_from_man "EBTABLES COMMAND LINE ARGUMENTS" ebtables' \
+	'getcap; xbash_get_opts_from_man "" getcap' \
+	'ip6tables; xbash_get_opts_from_man OPTIONS ip6tables' \
+	'iptables; xbash_get_opts_from_man OPTIONS iptables' \
+	'kpartx; xbash_get_opts_from_man "" kpartx' \
+	'less; xbash_get_opts_from_man OPTIONS less' \
+	'ps --help all | sed '\''s/\(--help\) <[^>]*>/\1/'\' \
+	'scp; xbash_get_opts_from_man "" 1 scp' \
+	'ssh-keygen; xbash_get_opts_from_man "" 1 ssh-keygen' \
+	'ssh; xbash_get_opts_from_man "" 1 ssh' \
+	$(complete -p | LC_ALL=C awk '{
+		for(i = NF - 2; i > 1; i--) if($i == "-F") {
+			if($(++i) == "_longopt") print $NF
+			next
+		}
+	}')
+
+xbash_comp_awk() {
+	local context result
+	if xbash_parse_comp_argv context '[bcCghMnNOPrsStV]' '[fFveEilW]' '(file|field-separator|assign|source|exec|include|load)'
+	then case ${context[2]} in
+	i|-include|l|-load)
+		COMP_VALUES=("$(
+			case ${context[2]} in
+			i|-include) ENVVAR=AWKPATH; SUFFIX='\.awk';;
+			l|-load) ENVVAR=AWKLIBPATH; SUFFIX='\.so';;
+			esac
+			eval "DIRS=($(xbash_awk 'BEGIN {
+				if(ENVIRON[ARGV[1]] == "") exit
+				ORS = " "
+				count = split(ENVIRON[ARGV[1]], awkpath, ":")
+				for(i = 1; i <= count; i++) {
+					if(awkpath[i] !~ /^[.\57]/) awkpath[i] = "./" awkpath[i]
+					print xbash_escape(awkpath[i])
+				}
+			}' "$ENVVAR"))"
+			OLDPWD=$PWD
+			for DIR in "${DIRS[@]}"; do
+				cd -- "$DIR" 2>/dev/null || continue
+				find . -path './*' -prune -type f -o -type l
+				cd -- "$OLDPWD" 2>/dev/null || break
+			done | sed 's/^\.\///; s/'"$SUFFIX"'$//' | LC_ALL=C sort -u |
+			xbash_menu
+		)")
+		;;
+	*) xbash_compspecial_bash_completion;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help xbash_get_opts_from_man '"" awk' || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		result=$({
+			cat <<- EOF
+			ARGC
+			ARGV
+			CONVFMT
+			ENVIRON
+			FILENAME
+			FNR
+			FS
+			NF
+			NR
+			OFMT
+			OFS
+			ORS
+			RLENGTH
+			RS
+			RSTART
+			SUBSEP
+			\t\n\v\f\r
+			arg == 0 && arg == ""
+			close()
+			cmd | getline var
+			getline var < file_path
+			gsub(regexp, "", str)
+			index(\$0, substr)
+			int()
+			length()
+			match(\$0, regexp)
+			print
+			printf("%s", )
+			split("", arr, ":")
+			split(\$0, arr, sep_regexp)
+			sprintf("%s", )
+			sub(regexp, "", str)
+			substr(\$0, RSTART, RLENGTH)
+			system("")
+			tolower()
+			toupper()
+			break
+			continue
+			delete
+			do {  } while()
+			else
+			exit
+			for(i = 1; i < ARGC; i++)
+			for(i in arr)
+			function
+			if
+			next
+			return
+			while
+			BEGIN {  }
+			END {  }
+			EOF
+			[ "$COMP_COMMAND" = xbash_awk ] && cat <<- EOF
+			xbash_err(message, exit_code)
+			xbash_escape(string, no_l_quote, no_r_quote, string_escaping)
+			xbash_levenshtein(str1, str2, cost_ins, cost_rep, cost_del)
+			xbash_mbchrpos(string, i)
+			xbash_mblength(string)
+			xbash_ml2ol(string)
+			xbash_ol2ml(string)
+			xbash_startswith(string, substring)
+			argc
+			xbash_ord
+			xbash_re_bash_special_char
+			xbash_re_bash_nonspecial_char
+			xbash_re_printable_char
+			EOF
+			} | xbash_awk 'BEGIN {
+				match(ARGV[1], /^.*[^A-Za-z0-9_]/)
+				comp_pre = tolower(substr(ARGV[1], RLENGTH + 1))
+				ARGV[1] = substr(ARGV[1], 1, RLENGTH)
+			} {
+				if(xbash_startswith(tolower($0), comp_pre)) {
+					if(match($0, /^[A-Za-z0-9_]+/))
+						comp_dup[substr($0, RSTART, RLENGTH)] = ""
+					print $0
+				}
+			} END {
+				while(match(ARGV[1], /[A-Za-z0-9_]+/)) {
+					comp_value = substr(ARGV[1], RSTART, RLENGTH)
+					ARGV[1] = substr(ARGV[1], RSTART + RLENGTH)
+					if(comp_value ~ /^[0-9]/ || comp_value in comp_dup) continue
+					comp_dup[comp_value] = ""
+					if(xbash_startswith(tolower(comp_value), comp_pre)) print comp_value
+				}
+			}' "$1" | xbash_menu
+		) || return
+		COMP_VALUES=("$(LC_ALL=C awk -- 'BEGIN {
+			sub(/[A-Za-z0-9_]*$/, "", ARGV[1])
+			print ARGV[1]
+		}' "$1")$result")
+	else
+		return 2
+	fi
+}
+xbash_comp_gawk() { xbash_comp_awk "$@"; }
+xbash_comp_xbash_awk() { xbash_comp_awk "$@"; }
+xbash_comp_chown() {
+	local context
+	xbash_parse_comp_argv context '[cfvhRHLP]' '' '(from|reference)'
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	elif [ "${context[2]}" = -from ] || { [ -z "${context[2]}" ] && [ ${context[0]} -eq 0 ]; }; then
+		if xbash_move_substr '.*:' COMP_VALUE COMP_VALUE_BEFORE; then
+			xbash_compspecial_compgen -g || return 1
+		else
+			xbash_compspecial_compgen -u &&
+			COMP_VALUES=("${COMP_VALUES[0]}:$(id -gn -- "${COMP_VALUES[0]}")")
+		fi
+	else
+		return 2
+	fi
+}
+xbash_comp_date() {
+	local context
+	if xbash_parse_comp_argv context '[Ru]' '[dfrs]' '(date|file|rfc-3339|reference|set)'
+	then case ${context[2]} in
+	d|-date|s|-set)
+		COMP_VALUES=("$(
+			date '+%Y-%m-%d %H:%M:%S' |
+			xbash_istartswith "$COMP_VALUE" | xbash_menu
+		)")
+		;;
+	f|-file) return 2;;
+	I|-iso-8601)
+		COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" date hours minutes seconds ns | xbash_menu)")
+		;;
+	-rfc-3339)
+		COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" date seconds ns | xbash_menu)")
+		;;
+	r|-reference) return 2;;
+	*) return 1;;
+	esac || return 1
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		if [ "${1::1}" = + ] && [ "${1: -1}" = % ]; then
+			COMP_VALUES=("$(
+				xbash_menu <<- EOF
+				%a    -- Locale's abbreviated weekday name (e.g., Sun) (POSIX)
+				%A    -- Locale's full weekday name (e.g., Sunday) (POSIX)
+				%b    -- Locale's abbreviated month name (e.g., Jan) (POSIX)
+				%B    -- Locale's full month name (e.g., January) (POSIX)
+				%c    -- Locale's date and time (e.g., Thu Mar  3 23:05:25 2005) (POSIX)
+				%C    -- Century; like %Y, except omit last two digits (e.g., 20) (POSIX)
+				%d    -- Day of month (e.g., 01) (POSIX)
+				%D    -- Date; same as %m/%d/%y (POSIX)
+				%e    -- Day of month, space padded; same as %_d (POSIX)
+				%h    -- Same as %b (POSIX)
+				%H    -- Hour (00..23) (POSIX)
+				%I    -- Hour (01..12) (POSIX)
+				%j    -- Day of year (001..366) (POSIX)
+				%m    -- Month (01..12) (POSIX)
+				%M    -- Minute (00..59) (POSIX)
+				%n    -- A newline (POSIX)
+				%p    -- Locale's equivalent of either AM or PM; blank if not known (POSIX)
+				%r    -- Locale's 12-hour clock time (e.g., 11:11:04 PM) (POSIX)
+				%S    -- Second (00..60) (POSIX)
+				%t    -- A tab (POSIX)
+				%T    -- Time; same as %H:%M:%S (POSIX)
+				%u    -- Day of week (1..7); 1 is Monday (POSIX)
+				%U    -- Week number of year, with Sunday as first day of week (00..53) (POSIX)
+				%V    -- ISO week number, with Monday as first day of week (01..53) (POSIX)
+				%w    -- Day of week (0..6); 0 is Sunday (POSIX)
+				%W    -- Week number of year, with Monday as first day of week (00..53) (POSIX)
+				%x    -- Locale's date representation (e.g., 12/31/99) (POSIX)
+				%X    -- Locale's time representation (e.g., 23:13:48) (POSIX)
+				%y    -- Last two digits of year (00..99) (POSIX)
+				%Y    -- Year with century (POSIX)
+				%Z    -- Alphabetic time zone abbreviation (e.g., EDT) (POSIX)
+				%%    -- A literal % (POSIX)
+				%F    -- Full date; like %+4Y-%m-%d (GNU date)
+				%g    -- Last two digits of year of ISO week number (see %G) (GNU date)
+				%G    -- Year of ISO week number (see %V); normally useful only with %V (GNU date)
+				%k    -- Hour, space padded ( 0..23); same as %_H (GNU date)
+				%l    -- Hour, space padded ( 1..12); same as %_I (GNU date)
+				%N    -- Nanoseconds (000000000..999999999) (GNU date)
+				%P    -- Like %p, but lower case (GNU date)
+				%q    -- Quarter of year (1..4) (GNU date)
+				%R    -- 24-hour hour and minute; same as %H:%M (GNU date)
+				%s    -- Seconds since 1970-01-01 00:00:00 UTC (GNU date)
+				%z    -- +hhmm numeric time zone (e.g., -0400) (GNU date)
+				%:z   -- +hh:mm numeric time zone (e.g., -04:00) (GNU date)
+				%::z  -- +hh:mm:ss numeric time zone (e.g., -04:00:00) (GNU date)
+				%:::z -- Numeric time zone with : to necessary precision (e.g., -04, +05:30) (GNU date)
+				EOF
+			)") || return 1
+			COMP_VALUES[0]=${1:: -1}${COMP_VALUES[0]%% *}
+		else
+			COMP_VALUES=("$(
+				date $'+%m%d%H%M (POSIX, %%m%%d%%H%%M)\n%m%d%H%M%y (POSIX, %%m%%d%%H%%M%%y)\n%m%d%H%M%Y (POSIX, %%m%%d%%H%%M%%Y)\n%m%d%H%M.%S (GNU date, %%m%%d%%H%%M.%%S)\n%m%d%H%M%y.%S (GNU date, %%m%%d%%H%%M%%y.%%S)\n%m%d%H%M%Y.%S (GNU date, %%m%%d%%H%%M%%Y.%%S)' |
+				xbash_awk '{ if(xbash_startswith($1, ARGV[1])) print $0 }' "$COMP_VALUE" |
+				xbash_menu
+			)") || return
+			COMP_VALUES[0]=${COMP_VALUES[0]%% *}
+		fi
+	else return 1; fi
+}
+xbash_comp_dd() {
+	xbash_compspecial_bash_completion
+	case $? in
+	0|1) return;;
+	esac
+	xbash_move_substr '[^=][^=]*=' COMP_VALUE COMP_VALUE_BEFORE
+	return 2
+}
+xbash_comp_groups() { xbash_compspecial_compgen multi -u; }
+xbash_comp_lsblk() {
+	local context result is_multi=0 menu_args
+	if xbash_parse_comp_argv context '[abDdfhiJlMmnOPprSstVz]' '[EeIox]' '(dedup|exclude|include|output|sort|sysroot)'
+	then case ${context[2]} in
+	o|-output|E|-dedup|T|-tree|x|-sort)
+		case ${context[2]} in
+		o|-output)
+			is_multi=1
+			menu_args=multi
+			xbash_move_substr '.*,' COMP_VALUE COMP_VALUE_BEFORE
+			;;
+		esac
+		result=$(
+			lsblk --help | xbash_awk 'BEGIN {
+				state = col_width = values_count = 0
+				ARGV[1] = tolower(ARGV[1])
+			} {
+				if($1 ~ /^[A-Z0-9-]+$/) state = 1
+				if(!state) next
+				if($0 == "") exit
+				if(!xbash_startswith(tolower($1), ARGV[1])) next
+				values[++values_count, 1] = length($1)
+				if(values[values_count, 1] > col_width) col_width = values[values_count, 1]
+				values[values_count, 2] = $1
+				sub(/^[\t ]*[^\t ]+[\t ]+/, "")
+				values[values_count, 3] = $0
+			} END {
+				for(i = 1; i <= values_count; i++) {
+					printf("%s", values[i, 2])
+					if(values[i, 2] != "") printf("%" (col_width - values[i, 1]) "s -- %s", "", values[i, 3])
+					printf("\n")
+				}
+			}' "$COMP_VALUE" | xbash_menu $menu_args
+		) || return
+		COMP_VALUES=("$(
+			printf %s "$result" | LC_ALL=C awk -- 'BEGIN {
+				ORS = ""
+				ARGC = 1
+			} {
+				if(NR != 1) print ","
+				print $1
+			}' "$COMP_VALUE"
+		)")
+		[ $is_multi -eq 0 ] || {
+			[ "${COMP_VALUES[0]}" = "$COMP_VALUE" ] && COMP_VALUES[0]=${COMP_VALUES[0]},
+			COMP_NO_TRAILING_SPACE=1
+		}
+		;;
+	*) xbash_compspecial_bash_completion;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	else
+		xbash_compspecial_bash_completion
+	fi
+}
+xbash_comp_sh() {
+	local context result
+	if xbash_parse_comp_argv context '[cilrsDvabCefhmnux]' o '(init-file|rcfile)'
+	then
+		xbash_compspecial_bash_completion
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help xbash_get_opts_from_man '"" sh' || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_get_line_completion "$COMP_VALUE" result && COMP_VALUES=("$result")
+		COMP_NO_TRAILING_SPACE=1
+	else
+		return 2
+	fi
+}
+xbash_comp_bash() { xbash_comp_sh "$@"; }
+xbash_comp_su() {
+	local context result
+	if xbash_parse_comp_argv context '[flmpPVh]' '[cgGsw]' '(command|group|supp-group|shell|session-command|whitelist-environment)'
+	then case ${context[2]} in
+	c|-command|-session-command)
+		xbash_get_line_completion "$COMP_VALUE" result && COMP_VALUES=("$result")
+		COMP_NO_TRAILING_SPACE=1
+		;;
+	g|-group|G|-supp-group)
+		xbash_compspecial_compgen -g
+		;;
+	*) xbash_compspecial_bash_completion;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help su '--help | sed '\''s/^[\t ]*-,//'\' || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_compspecial_compgen -u
+	else
+		return 2
+	fi
+}
+xbash_comp_shutdown() {
+	local context
+	xbash_parse_comp_argv context .
+	if [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		COMP_VALUES=("$(
+			xbash_istartswith "$1" now +1 +5 +10 +15 +30 +60 hh:mm | xbash_menu
+		)")
+	elif [ ${context[0]} -eq 1 ]; then
+		COMP_VALUES=("$(xbash_istartswith "$1" wall_message)")
+	fi
+}
+xbash_comp_stat() {
+	local context result
+	if xbash_parse_comp_argv context '[Lft]' c '(format|printf)'
+	then case ${context[2]} in
+	c|-format|-printf)
+		[ "${COMP_VALUE: -1}" = % ] || return 1
+		result=$(
+			stat --help |
+			sed -n '/^[^\t ]*[^-].*--terse/{ n; b }; s/^[\t ]*\(%[^\t ]\)[\t ]\{1,\}/\1 -- /p' |
+			xbash_menu
+		) || return 1
+		COMP_VALUES=("$COMP_VALUE${result:1:1}")
+		return
+		;;
+	*) return 2;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	else
+		return 2
+	fi
+}
+xbash_comp_sudo() {
+	local context
+	if xbash_parse_comp_argv context '[ABbEeHiKklnPSsVv]' '[CghprtUTu]' '(close-from|group|host|prompt|role|type|other-user|command-timeout|user)'
+	then case ${context[2]} in
+	g|-group) xbash_compspecial_compgen -g;;
+	h|-host) xbash_compspecial_compgen -A hostname;;
+	U|-other-user|u|-user) xbash_compspecial_compgen -u;;
+	*) xbash_compspecial_bash_completion;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_compspecial_command || return 1
+	else
+		COMP_ARGV=("${COMP_ARGV[@]:COMP_ARGC - context[0]}")
+		COMP_ARGC=${context[0]}
+		xbash_compcontext_command
+		return 1
+	fi
+}
+xbash_comp_sudoedit() {
+	local context
+	if xbash_parse_comp_argv context '[ABbEeHiKklnPSsVv]' '[CghprtUTu]' '(close-from|group|host|prompt|role|type|other-user|command-timeout|user)' 1 || [ ${context[1]} -eq 1 ]; then
+		xbash_comp_sudo
+	else
+		return 2
+	fi
+}
+xbash_comp_sysctl() {
+	local context result var_name var_value IFS=$'\n'
+	if xbash_parse_comp_argv context '[neNqwabAdfXoxhV]' r pattern
+	then
+		xbash_compspecial_bash_completion
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	elif xbash_move_substr '[^=]*=' COMP_VALUE COMP_VALUE_BEFORE var_name; then
+		var_name=${var_name:: -1}
+		eval "var_value=$(sysctl -n -- "$var_name" | xbash_escape)"
+		xbash_istartswith "$COMP_VALUE" "$var_value" > /dev/null || return 2
+		COMP_VALUES=("$var_value")
+		COMP_NO_TRAILING_SPACE=1
+	else
+		result=$(
+			sysctl -a | xbash_awk 'BEGIN {
+				ARGV[1] = tolower(ARGV[1])
+			} {
+				if(xbash_startswith(tolower($1), ARGV[1])) print $0
+			}' "$COMP_VALUE" | xbash_menu multi
+		) || return 1
+		COMP_VALUES=($(printf %s "$result" | LC_ALL=C awk '{ print $1 }'))
+		[ "${COMP_VALUES[-1]}" != "$COMP_VALUE" ] || COMP_VALUES[-1]=$COMP_VALUE=
+		COMP_NO_TRAILING_SPACE=1
+	fi
+}
+xbash_comp_systemctl() {
+	local context result IFS=$'\n'
+	if xbash_parse_comp_argv context '[halrTiqf]' '[HMtpsno]' '(host|machine|type|state|property|job-mode|kill-who|signal|what|preset-mode|root|lines|output|boot-loader-menu|boot-loader-entry)'
+	then case ${context[2]} in
+	*) xbash_compspecial_bash_completion;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		result=$(
+			systemctl --help --no-pager | xbash_awk 'BEGIN {
+				ORS = ""; state = 0; is_first = 1
+				ARGV[1] = tolower(ARGV[1])
+			} {
+				if(sub(/^  ?/, "") && $0 ~ /^[a-z0-9][a-z0-9_-]*/) {
+					if(!xbash_startswith(tolower($1), ARGV[1])) next
+					state = 1
+					if(is_first) is_first = 0
+					else print "\n"
+					print $0
+				} else if(state) {
+					sub(/^[\t ]+/, "")
+					if($0 == "") state = 0
+					else print " " $0
+				}
+			} END { if(!is_first) print "\n" }' "$COMP_VALUE" | xbash_menu
+		) || return 1
+		COMP_VALUES=("$(LC_ALL=C awk -- 'BEGIN {
+			sub(/[^a-z0-9_-].*/, "", ARGV[1])
+			print ARGV[1]
+		}' "$result")")
+	else
+		COMP_VALUES=($(
+			systemctl --all --full --no-legend --no-pager list-units |
+			xbash_awk 'BEGIN {
+				ARGV[1] = tolower(ARGV[1])
+			} {
+				if(xbash_startswith(tolower($1), ARGV[1])) print $1
+			}' "$COMP_VALUE" | LC_ALL=C sort | xbash_menu multi
+		))
+		case $? in
+		1) return 1;;
+		2)
+			xbash_compspecial_bash_completion
+			return
+			;;
+		esac
+	fi
+}
+xbash_comp_systemd-run() {
+	local context
+	if xbash_parse_comp_argv context '[rdtPSqGh]' '[pEHM]' '(unit|property|description|slice|uid|gid|nice|working-directory|setenv|on-active|on-boot|on-startup|on-unit-active|on-unit-inactive|on-calendar|on-clock-change|on-timezone-change|path-property|socket-property|timer-property|host|machine)'
+	then
+		xbash_compspecial_bash_completion
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_compspecial_command || return 1
+	else
+		COMP_ARGV=("${COMP_ARGV[@]:COMP_ARGC - context[0]}")
+		COMP_ARGC=${context[0]}
+		xbash_compcontext_command
+		return 1
+	fi
+}
+xbash_comp_useradd() {
+	local context IFS
+	IFS=$XBASH_DEFAULT_IFS
+	if xbash_parse_comp_argv context '[DhlmMNorUZ]' '[bcdefgGkKpRPsu]' '(base-dir|comment|home-dir|expiredate|inactive|gid|groups|skel|key|password|root|prefix|shell|uid|selinux-user)'
+	then case ${context[2]} in
+	g|-gid) xbash_compspecial_compgen -g || return 1;;
+	G|-groups)
+		xbash_move_substr '.*,' COMP_VALUE COMP_VALUE_BEFORE
+		xbash_compspecial_compgen -g
+		IFS=,; COMP_VALUES=("${COMP_VALUES[*]}"); IFS=$XBASH_DEFAULT_IFS
+		[ "${COMP_VALUES[0]}" = "$COMP_VALUE" ] && COMP_VALUES[0]=${COMP_VALUES[0]},
+		COMP_NO_TRAILING_SPACE=1
+		;;
+	Z|-selinux-user) xbash_compspecial_compgen -u;;
+	*) xbash_compspecial_bash_completion;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_compspecial_compgen -u
+	else return 1; fi
+}
+xbash_comp_userdel() {
+	local context
+	if xbash_parse_comp_argv context '[fhr]' '[RP]' '(root|prefix)'
+	then
+		xbash_compspecial_bash_completion
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_compspecial_compgen -u
+	else return 1; fi
+}
+xbash_comp_usermod() {
+	local context user_group
+	if xbash_parse_comp_argv context '[aLmoU]' '[cdefgGlpRPsuvVwWZ]' '(comment|home|expiredate|inactive|gid|groups|login|password|root|prefix|shell|uid|add-subuids|del-subuids|add-subgids|del-subgids|selinux-user)'
+	then case ${context[2]} in
+	g|-gid) xbash_compspecial_compgen -g || return 1;;
+	G|-groups)
+		xbash_move_substr '.*,' COMP_VALUE COMP_VALUE_BEFORE
+		xbash_compspecial_compgen -g || return 1
+		OLDIFS=$IFS; IFS=,; COMP_VALUES=("${COMP_VALUES[*]}"); IFS=$OLDIFS
+		[ "${COMP_VALUES[0]}" = "$COMP_VALUE" ] && COMP_VALUES[0]=${COMP_VALUES[0]},
+		COMP_NO_TRAILING_SPACE=1
+		;;
+	Z|-selinux-user) xbash_compspecial_compgen -u || return 1;;
+	*) xbash_compspecial_bash_completion;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_compspecial_compgen -u || return 1
+		[ ${#COMP_VALUES[@]} -eq 1 ] && {
+			[ $COMP_ARGC -eq 1 ] || {
+				[ $COMP_ARGC -eq 2 ] && [ "${COMP_ARGV[1]}" = -- ]
+			}
+		} &&
+		user_group=$(id -gn -- "${COMP_VALUES[0]}" 2>/dev/null) &&
+		COMP_VALUES=(
+			-d "$(getent passwd "${COMP_VALUES[0]}" | cut -d: -f6)"
+			-g "$user_group"
+			-G "$(id -Gn -- "${COMP_VALUES[0]}" 2>/dev/null | LC_ALL=C awk -- 'BEGIN {
+				ORS = ""
+				ARGC = is_first = 1
+			} {
+				for(i = 1; i <= NF; i++) if($i != ARGV[1]) {
+					if(is_first) is_first = 0
+					else print ","
+					print $i
+				}
+			}' "$user_group")"
+			"${COMP_VALUES[0]}"
+		)
+		return 0
+	else return 1; fi
+}
+xbash_comp_watch() {
+	local context
+	if xbash_parse_comp_argv context '[bcegptxhv]' n '(interval)'
+	then case ${context[2]} in
+	n|-interval) COMP_VALUES=(0.5);;
+	*) xbash_compspecial_bash_completion;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	else
+		xbash_compspecial_eval $((COMP_ARGC - context[0]))
+	fi
+}
+xbash_comp_wget() {
+	local context
+	if xbash_parse_comp_argv context '[VhbdqvFcNS46xErkKmpHL]' '[eoaiBtOTwQPUlARDIX]' '(accept|accept-regex|append-output|backups|base|bind-address|body-data|body-file|ca-certificate|ca-directory|certificate|certificate-type|ciphers|compression|config|connect-timeout|crl-file|cut-dirs|default-page|directory-prefix|dns-timeout|domains|exclude-directories|exclude-domains|execute|follow-tags|ftp-password|ftp-user|header|http-password|http-user|ignore-tags|include-directories|input-file|input-metalink|level|limit-rate|load-cookies|local-encoding|metalink-index|method|output-document|output-file|password|pinnedpubkey|post-data|post-file|prefer-family|private-key|private-key-type|progress|proxy-password|proxy-user|quota|read-timeout|referer|regex-type|reject|reject-regex|rejected-log|remote-encoding|report-speed|restrict-file-names|retry-on-http-error|save-cookies|secure-protocol|start-pos|timeout|tries|use-askpass|user|user-agent|wait|waitretry|warc-dedup|warc-file|warc-header|warc-max-size|warc-tempdir)'
+	then case ${context[2]} in
+	-report-speed) COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" bits)");;
+	-prefer-family)
+		COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" IPv4 IPv6 none | xbash_menu)");;
+	-use-askpass) xbash_compspecial_command || return 1;;
+	-compression)
+		COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" auto gzip none | xbash_menu)");;
+	-certificate-type|-private-key-type)
+		COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" PEM DER | xbash_menu)");;
+	-regex-type) COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" posix)");;
+	*) xbash_compspecial_bash_completion;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	else
+		xbash_compspecial_bash_completion
+	fi
+}
+xbash_comp_which() {
+	[ "${COMP_VALUE::1}" = - ] && {
+		xbash_compspecial_parse_help || return 1
+		return
+	}
+	xbash_compspecial_command
+}
+xbash_comp_xargs() {
+	local context
+	if xbash_parse_comp_argv context '[0prtx]' '[adEILnPs]' '(max-lines|max-args|max-procs|max-chars|process-slot-var)'
+	then case ${context[2]} in
+	d|-delimiter) COMP_VALUES=($'\n');;
+	P|-max-procs)
+		COMP_VALUES=("$(nproc)") || return 1
+		COMP_VALUES=("$((COMP_VALUES[0] + 1))")
+		;;
+	*) xbash_compspecial_bash_completion;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_compspecial_command || return 1
+	else
+		COMP_ARGV=("${COMP_ARGV[@]:COMP_ARGC - context[0]}")
+		COMP_ARGC=${context[0]}
+		xbash_compcontext_command
+		return 1
+	fi
+}

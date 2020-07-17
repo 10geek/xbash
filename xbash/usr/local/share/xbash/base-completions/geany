@@ -1,0 +1,10 @@
+xbash_comp_geany() {
+	local context
+	if xbash_parse_comp_argv context '[PimnprstvV]' '[cgl]' '(column|config|socket-file|line|display)'
+	then return 2
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	else
+		return 2
+	fi
+}

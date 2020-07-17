@@ -1,0 +1,31 @@
+xbash_comp_telegram() {
+	xbash_is_func_self_invoked && {
+		case $1 in
+		get_help)
+			cat <<- EOF
+			-autostart  Enable automatic startup with the system
+			-debug  Run in debug mode immediately. See "logs" in ~/.local/share/TelegramDesktop/DebugLogs
+			-externalupdater  Set updater disabled at startup
+			-fixprevious  Fix previous installation
+			-freetype  Use freetype font engine on Windows and macOS
+			-many  Allow multiple instances of the client at the same time
+			-noupdate  Skip update
+			-scale 75  Change interface scale to 75%
+			-sendpath <file>  Send specified files
+			-startintray  Do not show the main window, just start in the system tray. Useful for automatic launching.
+			-tosettings  Launch to settings
+			-update  To update
+			-workdir <directory>  Working directory
+			EOF
+			;;
+		esac
+		return
+	}
+
+	local arg end_of_args=0
+	for arg in "${COMP_ARGV[@]:1}"; do
+		[ "$arg" = -- ] && return 2
+	done
+	[ "${1::1}" = - ] || return 2
+	xbash_compspecial_parse_help xbash_comp_telegram get_help 0
+}

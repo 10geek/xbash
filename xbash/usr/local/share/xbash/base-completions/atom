@@ -1,0 +1,13 @@
+xbash_comp_atom() {
+	local context
+	if xbash_parse_comp_argv context '[1dfhntmvwa]' '[lr]' '(log-file|resource-path|timeout)'
+	then case ${context[2]} in
+	r|-resource-path) xbash_compspecial_fs dirsonly || return 1;;
+	*) return 2;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	else
+		return 2
+	fi
+}

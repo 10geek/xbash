@@ -1,0 +1,174 @@
+xbash_comp_dnf() {
+	local result menu_args IFS=$'\n'
+	xbash_is_func_self_invoked && {
+	case $1 in
+	comp_pkgs_available|comp_pkgs_installed)
+		[ "$1" = comp_pkgs_available ] && [[ "$COMP_VALUE" =~ ^\.?\.?/ ]] && {
+			xbash_compspecial_fs "${@:2}"
+			return 1
+		}
+		[[ "$COMP_VALUE" =~ ^[A-Za-z0-9+.:@_-]*$ ]] || return 1
+		[ "${COMP_VALUE:0:1}" = @ ] && { xbash_comp_dnf comp_@group multi; return; }
+		COMP_VALUES=($(
+			sqlite3 -batch -init /dev/null /var/cache/dnf/packages.db \
+				"select pkg from ${1:10} WHERE pkg LIKE \"$COMP_VALUE%\"" |
+			xbash_awk 'BEGIN { comp_value_len = length(ARGV[1]) } {
+				full_pkg_name = $0
+				sub(/(-[^-]+(-[^-]+)?)?(\.[^.]+)?$/, "")
+				if(length($0) <= comp_value_len) print full_pkg_name
+				else print $0
+			}' "$COMP_VALUE" |
+			LC_ALL=C sort -u | xbash_menu "${@:2}"
+		)) || return 1
+		;;
+	comp_group|comp_@group)
+		result=$(
+			"$COMP_COMMAND" -q group --ids list |
+			xbash_awk 'BEGIN {
+				if(ARGV[2] == "comp_@group") {
+					if(substr(ARGV[1], 1, 1) != "@") exit
+					ARGV[1] = substr(ARGV[1], 2)
+				}
+				ARGV[1] = tolower(ARGV[1])
+			} {
+				if(match($0, /\([^)]+\)$/) && !xbash_startswith(tolower(substr($0, RSTART + 1, RLENGTH - 2)), ARGV[1])) next
+				print $0
+			}' "$COMP_VALUE" "$1" | xbash_menu "${@:2}"
+		) || return 1
+		COMP_VALUES=($(printf %s "$result" | sed -n 's/.*(\([^)]\{1,\}\))$/'"$([ "$1" = comp_@group ] && echo @)"'\1/p'))
+		[ ${#COMP_VALUES} -ne 0 ] || return 1
+		;;
+	comp_repo)
+		COMP_VALUES=($(
+			find -L /etc/yum.repos.d -path '/*/*/*' -prune -type f -name '*.repo' -exec cat {} \; |
+			xbash_awk 'BEGIN { ARGV[1] = tolower(ARGV[1]) } {
+				if(sub(/^\[/, "") && sub(/\]$/, "") && xbash_startswith(tolower($0), ARGV[1])) print $0
+			}' "$COMP_VALUE" | LC_ALL=C sort -u | xbash_menu "${@:2}"
+		)) || return 1
+		;;
+	comp_command)
+		COMP_VALUES=("$(
+			dnf --help | xbash_awk 'function process_comm() {
+				if(context) {
+					comms[comm] = substr(comm_descr, 2)
+					if(length(comm) > comm_max_len) comm_max_len = length(comm)
+				}
+				context = 0; comm_descr = ""
+			}
+			BEGIN {
+				ARGV[1] = tolower(ARGV[1])
+				context = comm_max_len = 0
+				comm_descr = ""
+			} {
+				sub(/^[\t ]+/, "")
+				if($0 == "" || $0 ~ /:$/) { process_comm(); next }
+				if(substr($0, 1, 1) == "-") exit
+				if(match($0, /^[A-Za-z0-9._-]+[\t ][\t ]/)) {
+					process_comm()
+					comm = substr($0, 1, RLENGTH - 2)
+					if(!xbash_startswith(tolower(comm), ARGV[1])) { context = 0; next }
+					$0 = substr($0, RLENGTH + 1)
+					sub(/^[\t ]+/, "")
+					if($0 == "") { context = 0; next }
+					context = 1
+				}
+				if(context) comm_descr = comm_descr " " $0
+			} END {
+				process_comm()
+				for(comm in comms)
+					printf("%-" comm_max_len "s -- %s\n", comm, comms[comm])
+			}' "$COMP_VALUE" | LC_ALL=C sort -u | xbash_menu
+		)") || return 1
+		COMP_VALUES[0]=${COMP_VALUES[0]%%[$'\t ']*}
+		;;
+	esac; return; }
+
+	local context
+	if xbash_parse_comp_argv context '[qvhbCy46]' '[cRdex]' '(config|installroot|enableplugin|disableplugin|releasever|setopt|randomwait|debuglevel|errorlevel|rpmverbosity|enablerepo|disablerepo|repo|repoid|exclude|excludepkgs|disableexcludes|disableexcludepkgs|repofrompath|color|destdir|downloaddir|comment|advisory|advisories|bz|bzs|cve|cves|sec-severity|secseverity|forcearch)'
+	then case ${context[2]} in
+	x|-exclude|-excludepkgs)
+		xbash_comp_dnf comp_pkgs_available;;
+	-disablerepo|-enablerepo|-repofrompath|-repo|-repoid)
+		xbash_comp_dnf comp_repo;;
+	d|-debuglevel|e|-errorlevel)
+		COMP_VALUES=("$(xbash_startswith "$COMP_VALUE" {0..10} | xbash_menu)");;
+	-color)
+		COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" 1 0 true false yes no | xbash_menu)");;
+	-sec-severity|-secseverity)
+		COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" Critical Important Moderate Low | xbash_menu)");;
+	c|-config|-installroot|-destdir|-downloaddir) return 2;;
+	*) xbash_compspecial_bash_completion;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help || return 1
+	elif [ ${context[0]} -eq 0 ]; then
+		xbash_comp_dnf comp_command
+	elif [ "${1:0:1}" = - ]; then
+		xbash_compspecial_parse_help "$COMP_COMMAND" '--help "${COMP_ARGV[COMP_ARGC - context[0]]}"' || return 1
+	else
+		case ${COMP_ARGV[COMP_ARGC - context[0]]} in
+		alias)
+			case ${context[0]} in
+			1) COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" add delete list | xbash_menu)");;
+			*)
+				[ "${COMP_ARGV[COMP_ARGC - context[0] + 1]}" = add ] &&
+				COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" 'command[=result]' | xbash_menu)")
+				;;
+			esac
+			;;
+		clean)
+			[ ${context[0]} -eq 1 ] && COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" metadata packages dbcache expire-cache all | xbash_menu)");;
+		group)
+			case ${context[0]} in
+			1) COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" install remove upgrade info list mark summary | xbash_menu)");;
+			*) xbash_comp_dnf comp_group multi;;
+			esac
+			;;
+		help) [ ${context[0]} -eq 1 ] && xbash_comp_dnf comp_command;;
+		history)
+			case ${context[0]} in
+			1) COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" redo undo rollback info list userinstalled | xbash_menu)");;
+			*)
+				case ${COMP_ARGV[COMP_ARGC - context[0] + 1]} in
+				list|info) menu_args=multi;;
+				userinstalled) return 1;;
+				*) [ ${context[0]} -gt 2 ] && return 1;;
+				esac
+				result=$(
+					dnf -q history list | xbash_awk 'BEGIN {
+						ARGV[1] = tolower(ARGV[1])
+					} {
+						if(match($1, /[0-9]+/) && !xbash_startswith(substr($1, RSTART, RLENGTH), ARGV[1])) next
+						print $0
+					}' "$COMP_VALUE" | xbash_menu $menu_args
+				) || return 1
+				COMP_VALUES=($(printf %s "$result" | sed -n 's/^['$'\t'' ]*\([0-9]\{1,\}\).*/\1/p'))
+				[ ${#COMP_VALUES} -ne 0 ] || return 1
+				;;
+			esac
+			;;
+		mark)
+			case ${context[0]} in
+			1) COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" install remove group | xbash_menu)");;
+			*) xbash_comp_dnf comp_pkgs_available multi;;
+			esac
+			;;
+		module) [ ${context[0]} -eq 1 ] && COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" disable enable info install list provides remove repoquery reset update | xbash_menu)");;
+		repository-packages)
+			case ${context[0]} in
+			1) xbash_comp_dnf comp_repo;;
+			2) COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" check-update info install list move-to reinstall reinstall-old remove remove-or-distro-sync remove-or-reinstall upgrade | xbash_menu)");;
+			*) xbash_comp_dnf comp_pkgs_available multi;;
+			esac
+			;;
+		copr) [ ${context[0]} -eq 1 ] && COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" disable enable list remove search help | xbash_menu)");;
+		playground) [ ${context[0]} -eq 1 ] && COMP_VALUES=("$(xbash_istartswith "$COMP_VALUE" disable enable upgrade | xbash_menu)");;
+		repomanage) [ ${context[0]} -eq 1 ] && xbash_compspecial_fs dirsonly || return 1;;
+		repolist|config-manager) xbash_comp_dnf comp_repo multi;;
+		builddep|debuginfo-install) [ ${context[0]} -eq 1 ] && xbash_comp_dnf comp_pkgs_available;;
+		check|makecache|needs-restarting|repoclosure|repodiff|repograph|reposync) return 1;;
+		provides|shell|debug-dump|debug-restore) return 2;;
+		*) xbash_comp_dnf comp_pkgs_available multi;;
+		esac
+	fi
+}

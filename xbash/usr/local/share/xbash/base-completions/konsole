@@ -1,0 +1,55 @@
+xbash_comp_konsole() {
+	local context matched
+	if xbash_parse_comp_argv context '' '[pT]' '(display|session|ncols|fn|font|bg|background|fg|foreground|btn|button|name|title|visual|inputstyle|im|stylesheet|graphicssystem|qmljsdebugger|caption|icon|config|style|geometry|profile|workdir|tabs-from-file)'
+	then case ${context[2]} in
+	-profile)
+		COMP_VALUES=("$(
+			konsole --list-profiles 2>/dev/null |
+			xbash_istartswith "$COMP_VALUE" | xbash_menu
+		)") || return 1
+		;;
+	p)
+		if xbash_move_substr '[^=][^=]*=' COMP_VALUE COMP_VALUE_BEFORE matched; then
+			COMP_VALUES=("$(
+				konsole --list-profile-properties 2>/dev/null | xbash_awk 'BEGIN {
+					ARGV[1] = substr(ARGV[1], 1, length(ARGV[1]) - 1)
+					ARGV[2] = tolower(ARGV[2])
+				} {
+					if(NF < 2) next
+					if($1 == ARGV[1]) {
+						if(xbash_startswith(tolower($NF), ARGV[2])) print $NF
+						exit
+					}
+				}' "$matched" "$COMP_VALUE" | xbash_menu
+			)") || return 1
+		else
+			COMP_VALUES=("$(
+				konsole --list-profile-properties 2>/dev/null | xbash_awk 'BEGIN {
+					ARGV[1] = tolower(ARGV[1])
+				} {
+					if(NF >= 2 && xbash_startswith(tolower($1), ARGV[1])) print $1 "=" $NF
+				}' "$COMP_VALUE" | LC_ALL=C sort | xbash_menu
+			)") || return 1
+		fi
+		COMP_NO_TRAILING_SPACE=1
+		;;
+	*) return 2;;
+	esac
+	elif [ ${context[1]} -eq 1 ]; then
+		xbash_compspecial_parse_help "$COMP_COMMAND" --help-all || return 1
+	else
+		if [ "${COMP_ARGV[COMP_ARGC - ${context[0]} - 1]}" = -- ] && [ "${COMP_ARGV[COMP_ARGC - ${context[0]} - 2]}" = -e ]; then
+			COMP_ARGC=$((COMP_ARGC - 1))
+		elif [ "${COMP_ARGV[COMP_ARGC - ${context[0]} - 1]}" != -e ]; then
+			return 1
+		fi
+		COMP_ARGV=("${COMP_ARGV[@]:COMP_ARGC - context[0]}")
+		COMP_ARGC=${#COMP_ARGV[@]}
+		if [ $COMP_ARGC -eq 0 ]; then
+			xbash_compspecial_command || return 1
+		else
+			xbash_compcontext_command
+			return 1
+		fi
+	fi
+}
