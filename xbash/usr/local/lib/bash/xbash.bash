@@ -2259,7 +2259,7 @@ xbash_compspecial_fs() {
 					return
 				}
 				if(!xbash_startswith(tolower(path), ARGV[2])) return
-				if(!comp_rsearch) print type xbash_ml2ol(path (type ? "" : "/"))
+				if(!comp_rsearch) print type xbash_ml2ol((path) (type ? "" : "/"))
 				else if(comp_rsearch == 1) print xbash_ml2ol(path)
 				else if(comp_rsearch == 2) print datetime_part xbash_ml2ol(path)
 			}
