@@ -2627,6 +2627,8 @@ xbash_compcontext_command() {
 }
 
 
+[ -z "$USER" ] && USER=$(id -nu)
+
 # Loading bash completion if it was not loaded
 declare -F _completion_loader > /dev/null || {
 	[ -f /usr/share/bash-completion/bash_completion ] &&
