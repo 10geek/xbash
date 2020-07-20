@@ -14,6 +14,7 @@ xbash_setcomp_common \
 	'mcedit --help-all | grep -v ^--colors' \
 	'mcview --help-all | grep -v ^--colors' \
 	'python --help | sed '\''s/^\(file *:\)/\n\1/; s/\(--check-hash-based-pycs\) /\1  /; s/\(-[^:]\)*: /\1  /'\' \
+	'qemu-img --help | sed $'\''s/^\\([[:space:]]*\\)\47\\([^\47]*\\)\47/\\1\\2/'\' \
 	'xmllint; xmllint --help 2>&1 | sed '\''/^[[:space:]]*--/s/:[[:space:]]/  /'\'
 
 xbash_comp_git() {
