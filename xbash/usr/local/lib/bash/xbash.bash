@@ -7,7 +7,7 @@
 # xbash - an extensible framework for interactive bash shell with advanced
 # completion engine.
 #
-# Version: 0.1.0 (2020-07-17)
+# Version: 0.1.1 (2020-07-23)
 #
 # Copyright (c) 2020 10geek
 #
@@ -58,7 +58,7 @@ fi
 
 ## Predefined variables
 
-XBASH_VERSION=0.1.0
+XBASH_VERSION=0.1.1
 XBASH_DEFAULT_IFS=$IFS
 XBASH_PROMPT_PRE=
 XBASH_PROMPT_PS1=
