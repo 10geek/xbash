@@ -1100,7 +1100,7 @@ if [ $install_system_wide -ne 0 ]; then
 					else if($1 == "UID_MAX") print pre "$3 < " int($2)
 				}' /etc/login.defs 2>/dev/null ||
 				printf %s '$3 >= 1000 && $3 < 60000'
-			)"' && $1 != "nobody" { print $1; print $6 }' |
+			)"' && $3 != 0 && $1 != "nobody" { print $1; print $6 }' |
 			while IFS= read -r username && IFS= read -r homedir; do
 				update_bashrc bashrc "$homedir" "$username"
 			done
