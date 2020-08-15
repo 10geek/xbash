@@ -7,7 +7,7 @@
 # xbash - an extensible framework for interactive bash shell with advanced
 # completion engine.
 #
-# Version: 0.1.1 (2020-07-23)
+# Version: 0.1.2 (2020-08-15)
 #
 # Copyright (c) 2020 10geek
 #
@@ -58,7 +58,7 @@ fi
 
 ## Predefined variables
 
-XBASH_VERSION=0.1.1
+XBASH_VERSION=0.1.2
 XBASH_DEFAULT_IFS=$IFS
 XBASH_PROMPT_PRE=
 XBASH_PROMPT_PS1=
@@ -1219,6 +1219,9 @@ xbash_shell_preset() {
 		)"
 		return
 	}
+
+	local parent_proc_name
+	parent_proc_name=$(ps -Ao pid,comm | awk -vppid="$PPID" '$1 == ppid { print $2; exit }')
 	shopt -s autocd
 	shopt -s checkhash
 	shopt -s checkjobs
@@ -1231,17 +1234,19 @@ xbash_shell_preset() {
 	bind -x '"\C-i": xbash_trigger_completion'
 	bind -x '"\C-r": xbash_trigger_search_history reverse'
 	bind -x '"\C-s": xbash_trigger_search_history'
-	bind -x '"\"": xbash_buf autopair \" \"'
-	bind -x '"'\''": xbash_buf autopair \'\'' \'\'
-	bind -x '"\`": xbash_buf autopair \` \`'
-	bind -x '"(": xbash_buf autopair \( \)'
-	bind -x '")": xbash_buf autopair \)'
-	bind -x '"[": xbash_buf autopair [ ]'
-	bind -x '"]": xbash_buf autopair ]'
-	bind -x '"{": xbash_buf autopair { }'
-	bind -x '"}": xbash_buf autopair }'
-	bind -x '"«": xbash_buf autopair « »'
-	bind -x '"»": xbash_buf autopair »'
+	[ "$parent_proc_name" = mc ] || { :
+		bind -x '"\"": xbash_buf autopair \" \"'
+		bind -x '"'\''": xbash_buf autopair \'\'' \'\'
+		bind -x '"\`": xbash_buf autopair \` \`'
+		bind -x '"(": xbash_buf autopair \( \)'
+		bind -x '")": xbash_buf autopair \)'
+		bind -x '"[": xbash_buf autopair [ ]'
+		bind -x '"]": xbash_buf autopair ]'
+		bind -x '"{": xbash_buf autopair { }'
+		bind -x '"}": xbash_buf autopair }'
+		bind -x '"«": xbash_buf autopair « »'
+		bind -x '"»": xbash_buf autopair »'
+	}
 	bind -x '"\C-w": xbash_buf backward-kill-group'
 	bind -x '"\e\C-?": xbash_buf backward-kill-group'
 	bind -x '"\e\C-h": xbash_buf backward-kill-group'
@@ -1272,7 +1277,7 @@ xbash_shell_preset() {
 	bind '"\eOF": end-of-line'
 	bind '"\e[4~": end-of-line'
 	bind '"\e[8~": end-of-line'
-	PROMPT_COMMAND=xbash_pre_prompt
+	[ "$parent_proc_name" = mc ] || PROMPT_COMMAND=xbash_pre_prompt
 	GLOBIGNORE=.:..
 	TIMEFORMAT='time: %Rs, cpu: %P%%'
 	export GREP_COLOR='1;33'
