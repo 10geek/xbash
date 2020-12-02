@@ -232,40 +232,40 @@ ui() {
 		fi
 		ui_output=$(
 		export ui_action ui_description ui_event ui_menu_cursor_pos ui_menu_height_old ui_search ui_title ui_value_l ui_value_r
-		eval "$(printf %s "$ui_menu" | awk '{
+		eval "$(printf %s "$ui_menu" | LC_ALL=C awk '{
 			if(sub(/^[ \t]*[cimpr]/, "") && match($0, /^[A-Za-z_][A-Za-z0-9_]*/))
 				print "export " substr($0, RSTART, RLENGTH)
 		}')"
 		printf %s "$ui_menu" | LC_ALL=C awk -- '
-		function mblength(__in) {
-			gsub(/[^\1-\177\300-\367]/, "", __in)
-			return length(__in)
+		function mblength(string) {
+			gsub(/[^\1-\177\300-\367]/, "", string)
+			return length(string)
 		}
-		function mbcharpos(__in, __i) {
-			__i += 0; __l = length(__in)
-			if(__i < 1 || __i > __l) {
+		function mbchrpos(string, i,    l, char_ord) {
+			i += 0; l = length(string)
+			if(i < 1 || i > l) {
 				RSTART = 0; RLENGTH = -1
 				return 0
 			}
 			RLENGTH = 0
-			for(RSTART = 1; RSTART <= __l; RSTART++) {
-				__ord = ord[substr(__in, RSTART, 1)]
-				if((__ord < 128 || __ord > 191) && --__i == 0) {
-					if(__ord < 128) RLENGTH = 1
-					else if(__ord < 224) RLENGTH = 2
-					else if(__ord < 240) RLENGTH = 3
-					else if(__ord < 248) RLENGTH = 4
+			for(RSTART = 1; RSTART <= l; RSTART++) {
+				char_ord = ord__trtab[substr(string, RSTART, 1)]
+				if((char_ord < 128 || char_ord > 191) && --i == 0) {
+					if(char_ord < 128) RLENGTH = 1
+					else if(char_ord < 224) RLENGTH = 2
+					else if(char_ord < 240) RLENGTH = 3
+					else if(char_ord < 248) RLENGTH = 4
 					else RLENGTH = 1
 					break
 				}
 			}
 			if(!RLENGTH) {
 				RSTART = 0; RLENGTH = -1
-			} else if(RSTART + RLENGTH - 1 > __l) RLENGTH = 1
+			} else if(RSTART + RLENGTH - 1 > l) RLENGTH = 1
 			else if(RLENGTH > 1) {
-				for(__i = RSTART + 1; __i < RSTART + RLENGTH; __i++) {
-					__ord = ord[substr(__in, __i, 1)]
-					if(__ord < 128 || __ord > 191) {
+				for(i = RSTART + 1; i < RSTART + RLENGTH; i++) {
+					char_ord = ord__trtab[substr(string, i, 1)]
+					if(char_ord < 128 || char_ord > 191) {
 						RLENGTH = 1
 						break
 					}
@@ -273,120 +273,130 @@ ui() {
 			}
 			return RSTART
 		}
-		function wordwrap(_in, _width, _fill_space, _max_lines, _add_ellipsis) {
-			_out = ""
-			_in_lines_count = split(_in, _tmp, "\n")
-			_lines_count = 0
-			for(_i = 1; _i <= _in_lines_count; _i++) {
-				if(_i != 1) _out = _out "\n"
-				while(mbcharpos(_tmp[_i], _width + 1)) {
-					_lines_count++
-					if(_max_lines > 0 && _lines_count == _max_lines) _max_lines = -1
-					_line_length = RSTART - 1
-					_line = substr(_tmp[_i], 1, _line_length + RLENGTH)
-					if(_max_lines == -1 && _add_ellipsis) {
-						mbcharpos(_line, _width - 1)
-						if(RSTART) match(substr(_line, 1, RSTART - 1), / +[^ ]*$/)
-					} else match(_line, / [^ ]*$/)
+		function wordwrap(string, width, fill_space, max_lines, add_ellipsis,    out, i, lines, string_lines_count, line_length, line, OLD_RSTART, OLD_RLENGTH) {
+			OLD_RSTART = RSTART; OLD_RLENGTH = RLENGTH
+			if(width < 1) width = 1
+			if(max_lines <= 0) max_lines = 0
+			out = ""
+			string_lines_count = split(string, lines, "\n")
+			if(!string_lines_count) {
+				string_lines_count = 1
+				lines[1] = ""
+			}
+			__wordwrap__lines_count = 0
+			for(i = 1; i <= string_lines_count; i++) {
+				if(i != 1) out = out "\n"
+				while(mbchrpos(lines[i], width + 1)) {
+					__wordwrap__lines_count++
+					if(max_lines > 0 && __wordwrap__lines_count == max_lines) max_lines = -1
+					line_length = RSTART - 1
+					line = substr(lines[i], 1, line_length + RLENGTH)
+					if(max_lines == -1 && add_ellipsis) {
+						mbchrpos(line, width - 1)
+						if(RSTART) match(substr(line, 1, RSTART - 1), / +[^ ]*$/)
+					} else match(line, / [^ ]*$/)
 					if(RSTART) {
-						_line = substr(_line, 1, RSTART - 1)
-						if(_max_lines == -1 && _add_ellipsis) _line = _line "..."
-						else sub(/ *$/, "", _line)
-						if(_fill_space) {
-							_line_length = mblength(_line)
-							_line = _line sprintf("%" _width - _line_length "s", "")
+						line = substr(line, 1, RSTART - 1)
+						if(max_lines == -1 && add_ellipsis) line = line "..."
+						else sub(/ *$/, "", line)
+						if(fill_space) {
+							line_length = mblength(line)
+							line = line sprintf("%" (width - line_length) "s", "")
 						}
-						if(_max_lines != -1) {
-							_tmp[_i] = substr(_tmp[_i], RSTART + 1)
-							sub(/^ */, "", _tmp[_i])
+						if(max_lines != -1) {
+							lines[i] = substr(lines[i], RSTART + 1)
+							sub(/^ */, "", lines[i])
 						}
 					} else {
-						if(_max_lines == -1 && _add_ellipsis) {
-							mbcharpos(_line, _width - 3)
-							if(RSTART) _line = substr(_line, 1, RSTART + RLENGTH - 1) "..."
-							else _line = "..."
-						} else _line = substr(_tmp[_i], 1, _line_length)
-						if(_max_lines != -1) _tmp[_i] = substr(_tmp[_i], _line_length + 1)
+						if(max_lines == -1 && add_ellipsis) {
+							mbchrpos(line, width - 3)
+							if(RSTART) line = substr(line, 1, RSTART + RLENGTH - 1) "..."
+							else line = "..."
+						} else line = substr(lines[i], 1, line_length)
+						if(max_lines != -1) lines[i] = substr(lines[i], line_length + 1)
 					}
-					_out = _out _line
-					if(_max_lines == -1) break
-					if(_tmp[_i] != "") _out = _out "\n"
+					out = out line
+					if(max_lines == -1) { break }
+					if(lines[i] != "") out = out "\n"
 				}
-				if(_max_lines != -1) {
-					_lines_count++
-					if(_max_lines > 0 && _lines_count == _max_lines) {
-						_max_lines = -1
-						if(_add_ellipsis && _i != _in_lines_count) {
-							_line_length = mblength(_tmp[_i])
-							if(_width - _line_length > 2) _tmp[_i] = _tmp[_i] "..."
+				if(max_lines != -1) {
+					__wordwrap__lines_count++
+					if(max_lines > 0 && __wordwrap__lines_count == max_lines) {
+						max_lines = -1
+						if(add_ellipsis && i != string_lines_count) {
+							line_length = mblength(lines[i])
+							if(width - line_length > 2) lines[i] = lines[i] "..."
 							else {
-								mbcharpos(_tmp[_i], _width - 2)
-								if(RSTART && match(substr(_tmp[_i], 1, RSTART + RLENGTH - 1), / +[^ ]*$/)) _tmp[_i] = substr(_tmp[_i], 1, RSTART - 1) "..."
+								mbchrpos(lines[i], width - 2)
+								if(RSTART && match(substr(lines[i], 1, RSTART + RLENGTH - 1), / +[^ ]*$/)) lines[i] = substr(lines[i], 1, RSTART - 1) "..."
 								else {
-									mbcharpos(_tmp[_i], _width - 3)
-									if(RSTART) _tmp[_i] = substr(_tmp[_i], 1, RSTART + RLENGTH - 1) "..."
-									else _tmp[_i] = "..."
+									mbchrpos(lines[i], width - 3)
+									if(RSTART) lines[i] = substr(lines[i], 1, RSTART + RLENGTH - 1) "..."
+									else lines[i] = "..."
 								}
 							}
 						}
 					}
-					if(_fill_space) {
-						_line_length = mblength(_tmp[_i])
-						_tmp[_i] = _tmp[_i] sprintf("%" _width - _line_length "s", "")
+					if(fill_space) {
+						line_length = mblength(lines[i])
+						lines[i] = lines[i] sprintf("%" (width - line_length) "s", "")
 					}
-					_out = _out _tmp[_i]
+					out = out lines[i]
 				}
-				if(_max_lines == -1) break
+				if(max_lines == -1) { break }
 			}
-			return _out
+			RSTART = OLD_RSTART; RLENGTH = OLD_RLENGTH
+			return out
 		}
-		function filter_printable(_in) {
-			_out = ""
-			gsub(/\t/, "    ", _in)
-			gsub(/\0/, "", _in)
-			while(_in != "") {
-				if(!match(_in, /([\n\40-\176]|[\303-\310\312\313\320\321\332][\200-\277]|\302[\240-\277]|\311[\200\201\220-\277]|\315[\264\265\272\276]|\316[\204-\212\214\216-\241\243-\277]|\317[\200-\216\220-\277]|\322[\200-\202\212-\277]|\323[\200-\216\220-\271]|\324[\200-\217\261-\277]|\325[\200-\226]|\325[\231-\237\241-\277]|\326[\200-\207\211-\212\276]|\327[\200\203\206\220-\252\260-\264]|\330[\213-\217\233\236\237\241-\272]|\331[\200-\212\240-\257\261-\277]|\333[\200-\225\245\246\251\256-\277]|\334[\200-\215\220\222-\257]|\335[\215-\255]|\336[\200-\245\261]|\340(\244[\203-\271\275-\277]|\245[\200\211-\214\220\230-\241\244-\260\275]|\246[\202\203\205-\214\217\220\223-\250\252-\260\262\266-\271\275-\277]|\247[\200\207\210\213\214\216\227\234\235\237-\241\246-\272]|\250[\203\205-\212\217\220\223-\250\252-\260\262\263\265\266\270\271\276\277]|\251[\200\231-\234\236\246-\257\262-\264]|\252[\203\205-\215\217-\221\223-\250\252-\260\262\263\265-\271\275-\277]|\253[\200\211\213\214\220\240\241\246-\257\261]|\254[\202\203\205-\214\217\220\223-\250\252-\260\262\263\265-\271\275\276]|\255[\200\207\210\213\214\227\234\235\237-\241\246-\261]|\256[\203\205-\212\216-\220\222-\225\231\232\234\236\237\243\244\250-\252\256-\271\276\277]|\257[\201\202\206-\210\212-\214\227\246-\272]|\260[\201-\203\205-\214\216-\220\222-\250\252-\263\265-\271]|\261[\201-\204\240\241\246-\257]|\262[\202\203\205-\214\216-\220\222-\250\252-\263\265-\271\275\276]|\263[\200-\204\207\210\212\213\225\226\236\240\241\246-\257]|\264[\202\203\205-\214\216-\220\222-\250\252-\271\276\277]|\265[\200\206-\210\212-\214\227\240-\241\246-\257]|\266[\202\203\205-\226\232-\261\263-\273\275]|\267[\200-\206\217-\221\230-\237\262-\264]|\270[\201-\260\262\263\277]|\271[\200-\206\217-\233]|\272[\201\202\204\207\210\212\215\224-\227\231-\237\241-\243\245\247\252\253\255-\260\262\263\275]|\273[\200-\204\206\220-\231\234\235]|\274[\200-\227\232-\264\266\270\272-\277]|\275[\200-\207\211-\252\277]|\276[\205\210-\213\276\277]|\277[\200-\205\207-\214\217-\221])|\341(\200[\200-\241\243-\247\251\252\254\261\270]|\201[\200-\227]|\202\240|\203[\205\220-\274]|\210\200|\211[\210\212-\215\220-\226\230\232-\235\240-\277]|\212[\200-\210\212-\215\220-\260\262-\265\270-\276]|\213[\200\202-\205\210-\226\230-\277]|\214[\200-\220\222-\225\230-\277]|\215[\200-\232\240-\274]|\216[\200-\231\240-\277]|\217[\200-\264]|\220\201|\231\266|\220\201|\231\266|\232[\200-\234\240-\277]|\233[\200-\260]|\234[\200-\214\216-\221\240-\261\265\266]|\235[\200-\221\240-\254\256-\260]|\236[\200-\263\266\276\277]|\237[\200-\205\207\210\224-\234\240-\251\260-\271]|\240[\200-\212\216\220-\231\240-\277]|\241[\200-\267]|\242[\200-\250]|\244[\200-\234\243-\246\251-\253\260\261\263-\270]|\245[\200\204-\255\260-\264]|\246[\200-\251\260-\277]|\247[\200-\211\220-\231\236-\277]|\250[\200-\226\231-\233\236\237]|[\264-\266\270\271][\200-\277]|\272[\200-\233\240-\277]|\273[\200-\271]|\274[\200-\225\230-\235\240-\277]|\275[\200-\205\210-\215\220-\227\231\233\235\237-\275]|\276[\200-\264\266-\277]|\277[\200-\204\206-\223\226-\233\235-\257\262-\264\266-\276])|\342([\204\207-\213\215\216\222-\231\240-\253\262][\200-\277]|\200[\200-\212\220-\251\257-\277]|\201[\200-\237\260\261\264-\277]|\202[\200-\216\220-\224\240-\265]|\205[\200-\214\223-\277]|\206[\200-\203\220-\277]|\214[\200-\250\253-\277]|\217[\200-\233]|\220[\200-\246]|\221[\200-\212\240-\277]|\232[\200-\234\240-\261]|\234[\201-\204\206-\211\214-\247\251-\277]|\235[\200-\213\215\217-\222\226\230-\236\241-\277]|\236[\200-\224\230-\257\261-\276]|\237[\200-\206\220-\253\260-\277]|\254[\200-\223]|\260[\200-\256\260-\277]|\261[\200-\236]|\263[\200-\252\271-\277]|\264[\200-\245\260-\277]|\265[\200-\245\257]|\266[\200-\226\240-\246\250-\256\260-\266\270-\276]|\267[\200-\206\210-\216\220-\226\230-\236]|\270[\200-\227\234-\235])|\352(\234[\200-\226]|\240[\200-\205\207-\212\214-\244\247-\253])|\356\200\200|\357(\243\277|\254[\200-\206\223-\227\235\237-\266\270-\274\276]|\255[\200\201\203\204\206-\277]|\256[\200-\261]|\257[\223-\277]|[\260-\264][\200-\277]|\265[\220-\277]|\266[\200-\217\222-\277]|\267[\200-\207\260-\275]|\271[\260-\264\266]|\273[\200-\274]|\275[\241-\277]|\276[\200-\276]|\277[\202-\207\212-\217\222-\227\232-\234\250-\256\274\275]))+/))
-					_replaced_chars_count = mblength(_in)
+		function filter_printable(string,    i, out, replaced_chars_count, OLD_RSTART, OLD_RLENGTH) {
+			OLD_RSTART = RSTART; OLD_RLENGTH = RLENGTH
+			out = ""
+			gsub(/\t/, "    ", string)
+			gsub(/\0/, "", string)
+			while(string != "") {
+				if(!match(string, /([\n\40-\176]|[\303-\310\312\313\320\321\332][\200-\277]|\302[\240-\277]|\311[\200\201\220-\277]|\315[\264\265\272\276]|\316[\204-\212\214\216-\241\243-\277]|\317[\200-\216\220-\277]|\322[\200-\202\212-\277]|\323[\200-\216\220-\271]|\324[\200-\217\261-\277]|\325[\200-\226]|\325[\231-\237\241-\277]|\326[\200-\207\211-\212\276]|\327[\200\203\206\220-\252\260-\264]|\330[\213-\217\233\236\237\241-\272]|\331[\200-\212\240-\257\261-\277]|\333[\200-\225\245\246\251\256-\277]|\334[\200-\215\220\222-\257]|\335[\215-\255]|\336[\200-\245\261]|\340(\244[\203-\271\275-\277]|\245[\200\211-\214\220\230-\241\244-\260\275]|\246[\202\203\205-\214\217\220\223-\250\252-\260\262\266-\271\275-\277]|\247[\200\207\210\213\214\216\227\234\235\237-\241\246-\272]|\250[\203\205-\212\217\220\223-\250\252-\260\262\263\265\266\270\271\276\277]|\251[\200\231-\234\236\246-\257\262-\264]|\252[\203\205-\215\217-\221\223-\250\252-\260\262\263\265-\271\275-\277]|\253[\200\211\213\214\220\240\241\246-\257\261]|\254[\202\203\205-\214\217\220\223-\250\252-\260\262\263\265-\271\275\276]|\255[\200\207\210\213\214\227\234\235\237-\241\246-\261]|\256[\203\205-\212\216-\220\222-\225\231\232\234\236\237\243\244\250-\252\256-\271\276\277]|\257[\201\202\206-\210\212-\214\227\246-\272]|\260[\201-\203\205-\214\216-\220\222-\250\252-\263\265-\271]|\261[\201-\204\240\241\246-\257]|\262[\202\203\205-\214\216-\220\222-\250\252-\263\265-\271\275\276]|\263[\200-\204\207\210\212\213\225\226\236\240\241\246-\257]|\264[\202\203\205-\214\216-\220\222-\250\252-\271\276\277]|\265[\200\206-\210\212-\214\227\240-\241\246-\257]|\266[\202\203\205-\226\232-\261\263-\273\275]|\267[\200-\206\217-\221\230-\237\262-\264]|\270[\201-\260\262\263\277]|\271[\200-\206\217-\233]|\272[\201\202\204\207\210\212\215\224-\227\231-\237\241-\243\245\247\252\253\255-\260\262\263\275]|\273[\200-\204\206\220-\231\234\235]|\274[\200-\227\232-\264\266\270\272-\277]|\275[\200-\207\211-\252\277]|\276[\205\210-\213\276\277]|\277[\200-\205\207-\214\217-\221])|\341(\200[\200-\241\243-\247\251\252\254\261\270]|\201[\200-\227]|\202\240|\203[\205\220-\274]|\210\200|\211[\210\212-\215\220-\226\230\232-\235\240-\277]|\212[\200-\210\212-\215\220-\260\262-\265\270-\276]|\213[\200\202-\205\210-\226\230-\277]|\214[\200-\220\222-\225\230-\277]|\215[\200-\232\240-\274]|\216[\200-\231\240-\277]|\217[\200-\264]|\220\201|\231\266|\220\201|\231\266|\232[\200-\234\240-\277]|\233[\200-\260]|\234[\200-\214\216-\221\240-\261\265\266]|\235[\200-\221\240-\254\256-\260]|\236[\200-\263\266\276\277]|\237[\200-\205\207\210\224-\234\240-\251\260-\271]|\240[\200-\212\216\220-\231\240-\277]|\241[\200-\267]|\242[\200-\250]|\244[\200-\234\243-\246\251-\253\260\261\263-\270]|\245[\200\204-\255\260-\264]|\246[\200-\251\260-\277]|\247[\200-\211\220-\231\236-\277]|\250[\200-\226\231-\233\236\237]|[\264-\266\270\271][\200-\277]|\272[\200-\233\240-\277]|\273[\200-\271]|\274[\200-\225\230-\235\240-\277]|\275[\200-\205\210-\215\220-\227\231\233\235\237-\275]|\276[\200-\264\266-\277]|\277[\200-\204\206-\223\226-\233\235-\257\262-\264\266-\276])|\342([\204\207-\213\215\216\222-\231\240-\253\262][\200-\277]|\200[\200-\212\220-\251\257-\277]|\201[\200-\237\260\261\264-\277]|\202[\200-\216\220-\224\240-\265]|\205[\200-\214\223-\277]|\206[\200-\203\220-\277]|\214[\200-\250\253-\277]|\217[\200-\233]|\220[\200-\246]|\221[\200-\212\240-\277]|\232[\200-\234\240-\261]|\234[\201-\204\206-\211\214-\247\251-\277]|\235[\200-\213\215\217-\222\226\230-\236\241-\277]|\236[\200-\224\230-\257\261-\276]|\237[\200-\206\220-\253\260-\277]|\254[\200-\223]|\260[\200-\256\260-\277]|\261[\200-\236]|\263[\200-\252\271-\277]|\264[\200-\245\260-\277]|\265[\200-\245\257]|\266[\200-\226\240-\246\250-\256\260-\266\270-\276]|\267[\200-\206\210-\216\220-\226\230-\236]|\270[\200-\227\234-\235])|\352(\234[\200-\226]|\240[\200-\205\207-\212\214-\244\247-\253])|\356\200\200|\357(\243\277|\254[\200-\206\223-\227\235\237-\266\270-\274\276]|\255[\200\201\203\204\206-\277]|\256[\200-\261]|\257[\223-\277]|[\260-\264][\200-\277]|\265[\220-\277]|\266[\200-\217\222-\277]|\267[\200-\207\260-\275]|\271[\260-\264\266]|\273[\200-\274]|\275[\241-\277]|\276[\200-\276]|\277[\202-\207\212-\217\222-\227\232-\234\250-\256\274\275]))+/))
+					replaced_chars_count = mblength(string)
 				else if(RSTART > 1)
-					_replaced_chars_count = mblength(substr(_in, 1, RSTART - 1))
+					replaced_chars_count = mblength(substr(string, 1, RSTART - 1))
 				if(RSTART != 1) {
-					for(_i = 0; _i < _replaced_chars_count; _i++)
-						_out = _out "\357\277\275"
-					if(!RSTART) break
+					for(i = 0; i < replaced_chars_count; i++)
+						out = out "\357\277\275"
+					if(!RSTART) { break }
 				}
-				_out = _out substr(_in, RSTART, RLENGTH)
-				_in = substr(_in, RSTART + RLENGTH)
+				out = out substr(string, RSTART, RLENGTH)
+				string = substr(string, RSTART + RLENGTH)
 			}
-			return _out
+			RSTART = OLD_RSTART; RLENGTH = OLD_RLENGTH
+			return out
 		}
-		function shell_escape(_in) {
-			gsub(/\0/, "", _in)
-			gsub(/\n/, "\n.", _in)
-			gsub(/\47/, "\47\134\47\47", _in)
-			return "\47" _in "\47"
+		function shell_escape(string) {
+			gsub(/\0/, "", string)
+			gsub(/\n/, "\n.", string)
+			gsub(/\47/, "\47\134\47\47", string)
+			return "\47" string "\47"
 		}
-		function is_checked(_menu_index) {
-			if(menu_items_type[_menu_index] == "m") {
-				if(!(menu_items_vars[_menu_index] in multiselect_values)) {
-					multiselect_values[menu_items_vars[_menu_index]] = ""
-					_tmp_count = split(ENVIRON[menu_items_vars[_menu_index]], _tmp, "\n")
+		function is_checked(menu_index) {
+			if(menu_items_type[menu_index] == "m") {
+				if(!(menu_items_vars[menu_index] in multiselect_values)) {
+					multiselect_values[menu_items_vars[menu_index]] = ""
+					_tmp_count = split(ENVIRON[menu_items_vars[menu_index]], _tmp, "\n")
 					for(_i = 1; _i <= _tmp_count; _i++)
-						multiselect_values[menu_items_vars[_menu_index] ":" _tmp[_i]] = ""
+						multiselect_values[menu_items_vars[menu_index] ":" _tmp[_i]] = ""
 				}
-				if(_menu_index in menu_items_values)
-					return menu_items_vars[_menu_index] ":" menu_items_values[_menu_index] in multiselect_values
-				return menu_items_vars[_menu_index] ":" menu_items[_menu_index] in multiselect_values
-			} else if(menu_items_type[_menu_index] == "c")
-				return (ENVIRON[menu_items_vars[_menu_index]] ~ /^[1-9][0-9]*$/) == (!(_menu_index in menu_items_values) || menu_items_values[_menu_index] ~ /^[1-9][0-9]*$/)
-			else if(menu_items_type[_menu_index] == "r") {
-				if(_menu_index in menu_items_values)
-					return ENVIRON[menu_items_vars[_menu_index]] == menu_items_values[_menu_index]
-				return ENVIRON[menu_items_vars[_menu_index]] == menu_items[_menu_index]
+				if(menu_index in menu_items_values)
+					return menu_items_vars[menu_index] ":" menu_items_values[menu_index] in multiselect_values
+				return menu_items_vars[menu_index] ":" menu_items[menu_index] in multiselect_values
+			} else if(menu_items_type[menu_index] == "c")
+				return (ENVIRON[menu_items_vars[menu_index]] ~ /^[1-9][0-9]*$/) == (!(menu_index in menu_items_values) || menu_items_values[menu_index] ~ /^[1-9][0-9]*$/)
+			else if(menu_items_type[menu_index] == "r") {
+				if(menu_index in menu_items_values)
+					return ENVIRON[menu_items_vars[menu_index]] == menu_items_values[menu_index]
+				return ENVIRON[menu_items_vars[menu_index]] == menu_items[menu_index]
 			} else return -1
 		}
 		BEGIN {
 			ARGC = 1
-			for(i = 0; i < 256; i++) ord[sprintf("%c", i)] = i
+			for(i = 1; i < 256; i++) ord__trtab[sprintf("%c", i)] = i
 			term_w = ARGV[1] + 0
 			term_h = ARGV[2] + 0
 			action = ENVIRON["ui_action"]
@@ -431,9 +441,12 @@ ui() {
 				}
 				default_desc = ENVIRON["ui_description"] = ""
 				desc_height = default_desc_height = 0
-			} else {
+			} else if(ENVIRON["ui_description"] != "") {
 				default_desc = wordwrap(filter_printable(ENVIRON["ui_description"]), term_w, 1, 0, 0)
-				desc_height = default_desc_height = _lines_count
+				desc_height = default_desc_height = __wordwrap__lines_count
+			} else {
+				default_desc = ""
+				desc_height = default_desc_height = 0
 			}
 			if(action == "nav_up") menu_cursor_pos--
 			else if(action == "nav_down") menu_cursor_pos++
@@ -444,7 +457,7 @@ ui() {
 			else if(action == "nav_prev_selectable") {
 				for(i = menu_cursor_pos - 1; i != menu_cursor_pos; i--) {
 					if(i < 1) {
-						if(menu_cursor_pos == menu_items_count) break
+						if(menu_cursor_pos == menu_items_count) { break }
 						i = menu_items_count
 					}
 					if(menu_items_type[i] != "h" && menu_items_type[i] != "t") {
@@ -455,7 +468,7 @@ ui() {
 			} else if(action == "nav_next_selectable") {
 				for(i = menu_cursor_pos + 1; i != menu_cursor_pos; i++) {
 					if(i > menu_items_count) {
-						if(menu_cursor_pos == 1) break
+						if(menu_cursor_pos == 1) { break }
 						i = 1
 					}
 					if(menu_items_type[i] != "h" && menu_items_type[i] != "t") {
@@ -474,7 +487,7 @@ ui() {
 						delete multiselect_values[menu_items_vars[menu_cursor_pos] ":" menu_item_value]
 						is_first = 1
 						for(i = 1; i <= _tmp_count; i++) {
-							if(_tmp[i] == menu_item_value) continue
+							if(_tmp[i] == menu_item_value) { continue }
 							if(is_first) {
 								is_first = 0
 								if(_tmp[i] == "") menu_item_var_value = "\n"
@@ -520,7 +533,7 @@ ui() {
 					search_text = tolower(ENVIRON["ui_search"])
 					for(i = menu_cursor_pos - 1; i != menu_cursor_pos; i--) {
 						if(i < 1) {
-							if(menu_cursor_pos == menu_items_count) break
+							if(menu_cursor_pos == menu_items_count) { break }
 							i = menu_items_count
 						}
 						if(index(tolower(menu_items[i] (menu_items_type[i] == "i" ? " " ENVIRON[menu_items_vars[i]] : "")), search_text)) {
@@ -534,7 +547,7 @@ ui() {
 					search_text = tolower(ENVIRON["ui_search"])
 					for(i = menu_cursor_pos + 1; i != menu_cursor_pos; i++) {
 						if(i > menu_items_count) {
-							if(menu_cursor_pos == 1) break
+							if(menu_cursor_pos == 1) { break }
 							i = 1
 						}
 						if(index(tolower(menu_items[i] (menu_items_type[i] == "i" ? " " ENVIRON[menu_items_vars[i]] : "")), search_text)) {
@@ -554,13 +567,13 @@ ui() {
 			else if(menu_cursor_pos > menu_items_count) menu_cursor_pos = menu_items_count
 			for(i in menu_items_desc_raw) {
 				menu_items_desc[i] = wordwrap(filter_printable(menu_items_desc_raw[i]), term_w, 1, 0, 0)
-				menu_items_desc_height[i] = _lines_count
-				if(_lines_count > desc_height) desc_height = _lines_count
+				menu_items_desc_height[i] = __wordwrap__lines_count
+				if(__wordwrap__lines_count > desc_height) desc_height = __wordwrap__lines_count
 			}
 			if(ENVIRON["ui_title"] == "") title_height = 0
 			else {
 				title = wordwrap(filter_printable(ENVIRON["ui_title"]), term_w, 1, 0, 0)
-				title_height = _lines_count
+				title_height = __wordwrap__lines_count
 			}
 			if(desc_height) {
 				if(menu_cursor_pos in menu_items_desc) {
@@ -687,8 +700,8 @@ ui() {
 							field_cursor_pos = 0
 							field_offset = 0
 						}
-						if(field_offset) value = substr(value, mbcharpos(value, field_offset + 1))
-						if(field_offset + field_width < value_length) value = substr(value, 1, mbcharpos(value, field_width + 1) - 1)
+						if(field_offset) value = substr(value, mbchrpos(value, field_offset + 1))
+						if(field_offset + field_width < value_length) value = substr(value, 1, mbchrpos(value, field_width + 1) - 1)
 						if(label_length) {
 							if(menu_index == menu_cursor_pos) printf("\33[0;30;46m")
 							printf("%s ", label)
@@ -753,15 +766,16 @@ ui() {
 					field_cursor_pos = 0
 					field_offset = 0
 				}
-				if(field_offset) value = substr(value, mbcharpos(value, field_offset + 1))
-				if(field_offset + field_width < value_length) value = substr(value, 1, mbcharpos(value, field_width + 1) - 1)
+				if(field_offset) value = substr(value, mbchrpos(value, field_offset + 1))
+				if(field_offset + field_width < value_length) value = substr(value, 1, mbchrpos(value, field_width + 1) - 1)
 				printf("\33[" (event == "search_edit" ? 1 : 0) ";37;44m%s", value)
 				for(j = field_offset + field_width; j > value_length; j--) printf("_")
 				printf("\33[1;37;47m")
 			} else field_width = 0
 			for(i = field_width + 2; i < term_w; i++) printf("\342\224\200")
 			printf("\342\224\230\33[0m%s", print_at_end)
-		}' "$ui_stty_width" "$ui_stty_height")
+		}' "$ui_stty_width" "$ui_stty_height"
+		)
 		printf %s "$ui_output" | LC_ALL=C awk 'BEGIN { out = 0 } {
 			if(out) {
 				if(out == 2) print last_line
