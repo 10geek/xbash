@@ -7,9 +7,9 @@
 # xbash - an extensible framework for interactive bash shell with advanced
 # completion engine.
 #
-# Version: 0.1.2 (2020-08-15)
+# Version: 0.1.3 (2021-01-17)
 #
-# Copyright (c) 2020 10geek
+# Copyright (c) 2020-2021 10geek
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ fi
 
 ## Predefined variables
 
-XBASH_VERSION=0.1.2
+XBASH_VERSION=0.1.3
 XBASH_DEFAULT_IFS=$IFS
 XBASH_PROMPT_PRE=
 XBASH_PROMPT_PS1=
@@ -1605,7 +1605,7 @@ xbash_set_default_menu() {
 			shift-tab:up \
 			tab:down
 		)
-		if xbash_semver_match "$version" '>= 0.19.0'; then
+		if xbash_semver_match "$version" '>= 0.21.0'; then
 			XBASH_MENU_COMMAND+=' --info=inline'
 			XBASH_MENU_CONF_FZF_BINDS+=$(printf ,%s \
 				ctrl-/:abort \
