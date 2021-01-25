@@ -1,8 +1,7 @@
 ## Completions for various executables
 
-# Use the xbash_compspecial_common() completion function for all commands that
-# uses the _longopt() function in bash completion and other listed in the
-# arguments. The "!" character before the argument means not to apply a
+# Use the xbash_compspecial_common() completion function for all commands listed
+# in the arguments. The "!" character before the argument means not to apply a
 # completion to the specified command.
 xbash_setcomp_common \
 	apack aunpack curl dracut elinks firewall-cmd firewall-offline-cmd fzf \
