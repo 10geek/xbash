@@ -1,6 +1,6 @@
 xbash_comp_nano() {
 	local context
-	if xbash_parse_comp_argv context '[ABD-IK-NPRUVWZa-eg-npt-z$]' '[CJQTXYors]' '(backupdir|guidestripe|quotestr|tabsize|wordchars|syntax|operatingdir|fill|speller||||||)'
+	if xbash_parse_comp_argv context '[ABD-IK-NPRUVWZa-eg-npt-z$]' '[CJQTXYors]' '(backupdir|guidestripe|quotestr|tabsize|wordchars|syntax|operatingdir|fill|speller)'
 	then case ${context[2]} in
 	s|-speller) xbash_compspecial_command;;
 	Y|-syntax)
