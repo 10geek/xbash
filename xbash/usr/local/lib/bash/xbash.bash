@@ -848,7 +848,7 @@ xbash_escape() {
 	}' "$@"
 }
 
-# xbash_startswith <substring> [<string>] ...
+# Usage: xbash_startswith <substring> [<string>] ...
 # Outputs to standard output a strings starting with `substring`. If the
 # `string` argument is omitted, then reads strings from standard input.
 # Returns 1 if no string matches the `substring`.
@@ -872,7 +872,7 @@ xbash_startswith() {
 	} END { exit !has_matches }' "$@"
 }
 
-# xbash_istartswith <substring> [<string>] ...
+# Usage: xbash_istartswith <substring> [<string>] ...
 # Same as xbash_startswith, but performs a case-insensitive comparison.
 xbash_istartswith() {
 	xbash_awk 'BEGIN {
